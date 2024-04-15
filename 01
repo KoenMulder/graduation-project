@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+#SBATCH --output=Res.txt
+#
+#SBATCH --nodes=1
+#SBATCH --ntasks=48
+#SBATCH --error=slurm-%j.err
+#SBATCH --output=slurm-%j.out
+#SBATCH --partition=mech.pf.q
+#SBATCH --time=480:59:00
+
+./run

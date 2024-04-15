@@ -1,0 +1,147 @@
+      implicit none
+
+      character slip
+      logical   bubble
+      integer im,jm,km,nmax,m1,m2,nx_start,
+     $      nx_end,ny_start,ny_end,nz_start,nz_end,
+     $      i,j,k,change,typ,x_IB,y_IB,z_IB,direction,direction_v,
+     $      x1_plus,x1_minus,x2_plus,x2_minus,x3_plus,x3_minus,
+     $      cube_number,nx_prob,ny_prob,nz_prob,neighbor,
+     $      typ1,typ2,typ3,iter1,iter2,iter3,iter4,
+     $      typ1a,typ2a,typ3a
+
+      parameter (im=96,jm=96,km=96,nmax=3)
+
+      real*8 x1,x1_i,
+     $       dx1,dx1_i,
+     $       x2,x2_j,
+     $       dx2,dx2_j,
+     $       x3,x3_k,
+     $       dx3,dx3_k,
+     $       u1,u2,u3,p,
+     $       rhu,rhv,rhw,div,
+     $       u_node,v_node,
+     $       w_node,p_node,
+     $       lx1,lx2,lx3,
+     $       umax,c_w,co,nu,ro,
+     $       time,dtime,
+     $       radius,xc,yc,zc,dxcdt,drdt,
+     $       beta,alfa_s,beta_s,gama_s,total,
+     $       minbeta,maxbeta,
+
+     $       c,c_s,
+     $       work1,work2,work3,
+     $       c_ref,dif,
+
+     $       eta,phiL,ka,kc,
+     $       phi,
+     $       coef1_phi,coef2_phi,
+     $       coef3_phi,coef4_phi,
+     $       coef5_phi,coef6_phi,
+     $       current,conduct,
+     $       phiLe,phiR,Far,ac,aa,
+     $       condfac,ka0,kc0,
+
+     $       x_prob,y_prob,z_prob,denom,f01,f02,f03,f04,
+     $       f05,f06,f07,f08,f11,f12,f13,f14,f21,f22,f23,f24,
+     $       f31,f32,f33,f34,xb,yb,zb,
+
+     $       D1,D2,D3,D4,D5,D6,D,work,
+
+     $       height,chord,radius0,Max_Err_phi,
+
+     $       alfa_s_P,beta_s_P,gama_s_P,
+
+
+     $       nx_n,ny_n,nz_n
+
+
+      common /allvar/ 
+     $       x1(0:im+1),x1_i(-1:im+1),
+     $       dx1(0:im+1),dx1_i(0:im),
+     $       x2(0:jm+1),x2_j(-1:jm+1),
+     $       dx2(0:jm+1),dx2_j(0:jm),
+     $       x3(0:km+1),x3_k(-1:km+1),
+     $       dx3(0:km+1),dx3_k(0:km),
+     $       u1(0:im+1,0:jm+1,0:km+1),u2(0:im+1,0:jm+1,0:km+1),
+     $       u3(0:im+1,0:jm+1,0:km+1),p(0:im+1,0:jm+1,0:km+1),
+     $       rhu(0:im,0:jm,0:km),rhv(0:im,0:jm,0:km),
+     $       rhw(0:im,0:jm,0:km),
+     $       div(1:im,1:jm,1:km),
+     $       u_node(0:im,0:jm,0:km),v_node(0:im,0:jm,0:km),
+     $       w_node(0:im,0:jm,0:km),p_node(0:im,0:jm,0:km),
+     $       lx1,lx2,lx3,
+     $       umax,c_w,co,nu,ro,
+     $       time,dtime,
+     $       radius,xc,yc,zc,dxcdt,drdt,
+     $       beta,alfa_s,beta_s,gama_s,total,
+     $       minbeta(36),maxbeta(36), 
+
+     $       c(0:im+1,0:jm+1,0:km+1,nmax),c_s(1:nmax),
+     $       work1(0:im,0:jm,0:km),work2(0:im,0:jm,0:km),
+     $       work3(0:im,0:jm,0:km),
+     $       c_ref(nmax),dif(nmax),
+
+     $       eta(0:jm+1,0:km+1),phiL(0:jm+1,0:km+1),
+     $       ka(0:jm+1,0:km+1),kc(0:jm+1,0:km+1),
+     $       phi(0:im+1,0:jm+1,0:km+1),
+     $       coef1_phi(1:im,1:jm,1:km),coef2_phi(1:im,1:jm,1:km),
+     $       coef3_phi(1:im,1:jm,1:km),coef4_phi(1:im,1:jm,1:km),
+     $       coef5_phi(1:im,1:jm,1:km),coef6_phi(1:im,1:jm,1:km),
+     $       current(0:im,0:jm+1,0:km+1),conduct(0:im,0:jm+1,0:km+1),
+     $       phiLe,phiR,Far,ac,aa,
+     $       condfac,ka0,kc0,
+
+     $       x_prob(1:im*jm*km/2,1),y_prob(1:im*jm*km/2,1),
+     $       z_prob(1:im*jm*km/2,1),denom(1:im*jm*km/2,1),
+     $       f01(1:im*jm*km/2,1),f02(1:im*jm*km/2,1),
+     $       f03(1:im*jm*km/2,1),f04(1:im*jm*km/2,1),
+     $       f05(1:im*jm*km/2,1),f06(1:im*jm*km/2,1),
+     $       f07(1:im*jm*km/2,1),f08(1:im*jm*km/2,1),
+     $       f11(1:im*jm*km/2,1),f12(1:im*jm*km/2,1),
+     $       f13(1:im*jm*km/2,1),f14(1:im*jm*km/2,1),
+     $       f21(1:im*jm*km/2,1),f22(1:im*jm*km/2,1),
+     $       f23(1:im*jm*km/2,1),f24(1:im*jm*km/2,1),
+     $       f31(1:im*jm*km/2,1),f32(1:im*jm*km/2,1),
+     $       f33(1:im*jm*km/2,1),f34(1:im*jm*km/2,1),
+     $       xb(1:im*jm*km/2),yb(1:im*jm*km/2),zb(1:im*jm*km/2),
+
+     $       D1(1:im,1:jm,1:km),D2(1:im,1:jm,1:km),
+     $       D3(1:im,1:jm,1:km),D4(1:im,1:jm,1:km),
+     $       D5(1:im,1:jm,1:km),D6(1:im,1:jm,1:km),
+     $       D(1:im,1:jm,1:km),work(1:im,1:jm,1:km),
+
+     $       height,chord,radius0,Max_Err_phi,
+
+     $       alfa_s_P(1:im*jm*km/2),beta_s_P(1:im*jm*km/2),
+     $       gama_s_P(1:im*jm*km/2),
+
+
+     $       nx_n,ny_n,nz_n,
+
+     $       m1,m2,nx_start,nx_end,ny_start,ny_end,nz_start,nz_end,
+     $       i,j,k,change,
+     $       nx_prob(1:im*jm*km/2,1),
+     $       ny_prob(1:im*jm*km/2,1),nz_prob(1:im*jm*km/2,1),
+     $       typ(0:im+1,0:jm+1,0:km+1),neighbor(1:im*jm*km/2,1:6),
+     $       typ1(0:im+1,0:jm+1,0:km+1),
+     $       typ2(0:im+1,0:jm+1,0:km+1),
+     $       typ3(0:im+1,0:jm+1,0:km+1),
+     $       typ1a(0:im+1,0:jm+1,0:km+1),
+     $       typ2a(0:im+1,0:jm+1,0:km+1),
+     $       typ3a(0:im+1,0:jm+1,0:km+1),
+     $       x_IB(1:im*jm*km/2),y_IB(1:im*jm*km/2),
+     $       z_IB(1:im*jm*km/2),direction(1:im*jm*km/2),cube_number,
+     $       direction_v(1:im*jm*km/2),
+     $       x1_plus(1:im*jm*km/2),x1_minus(1:im*jm*km/2),
+     $       x2_plus(1:im*jm*km/2),x2_minus(1:im*jm*km/2),
+     $       x3_plus(1:im*jm*km/2),x3_minus(1:im*jm*km/2),
+     $       iter1,iter2,iter3,iter4,
+     $       bubble,
+     $       slip
+
+
+
+
+      
+
