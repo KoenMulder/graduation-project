@@ -4,14 +4,15 @@
      $        yy_plus,yy_minus,zz_plus,zz_minus,
      $        nr,nyc,nzc,absdir,o,mm
       real*8  nx,ny,nz,xc0,udummy
-      real*8  length_n
+      real*8  length_n,rnode
 
       change=1
       cube_number=0
       neighbor(1:im*jm*km/2,1:6)=0
 
       xc0=xc
-      xc=radius+x1_i(1)
+      xc=radius+1d0*x1_i(1)
+
 
       dxcdt=(xc-xc0)/dtime
 
@@ -44,6 +45,7 @@ c     to make it faster
        typ1a(i,j,k)=0
        typ2a(i,j,k)=0
        typ3a(i,j,k)=0
+       typ_IB(i,j,k)=0
 
       end do
       end do
@@ -144,6 +146,9 @@ c     to make it faster
          x_IB(change)=i
          y_IB(change)=j
          z_IB(change)=k
+
+
+         typ_IB(i,j,k)=1
 
          nx=x1(i)-xc
          ny=x2(j)-yc
@@ -473,6 +478,57 @@ c     to make it faster
          f34(o,mm)=x1(nx_prob(o,mm))*x2(ny_prob(o,mm))
 
       end do
+
+      mm=1
+      do o=1,change-1
+         i=x_IB(o)
+         j=y_IB(o)
+         k=z_IB(o)
+
+          phiS(o)=datan2((x2(j)-yc),(x1(i)-xc))
+
+          thetaS(o)=acos((x3(k)-zc)/sqrt((x1(i)-xc)**2+
+     $    (x2(j)-yc)**2+(x3(k)-zc)**2))
+
+
+          T_ni(o)=cos(phiS(o))*sin(thetaS(o))
+          T_nj(o)=sin(phiS(o))*sin(thetaS(o))
+          T_nk(o)=cos(thetaS(o))
+
+          T_ti(o)=-sin(phiS(o))
+          T_tj(o)=cos(phiS(o))
+          T_tk(o)=0d0
+
+          T_si(o)=cos(phiS(o))*cos(thetaS(o))
+          T_sj(o)=sin(phiS(o))*cos(thetaS(o))
+          T_sk(o)=-sin(thetaS(o))
+
+c         initialise x-direction
+c         Normal distance between interface and bubble centre
+          rnode=sqrt((x1(i)-xc)**2+(x2(j)-yc)**2+(x3(k)-zc)**2)
+
+
+c        normal distance of interface to bubble surface 
+c        (can be negative)
+          rb(o)=radius-rnode
+
+          xb_c(o)=x1(i)+rb(o)*T_ni(o)
+          yb_c(o)=x2(j)+rb(o)*T_nj(o)
+          zb_c(o)=x3(k)+rb(o)*T_nk(o)
+
+          x_prob_c(o,mm)=xb_c(o)+dx1_i(0)*T_ni(o)
+          y_prob_c(o,mm)=yb_c(o)+dx1_i(0)*T_nj(o)
+          z_prob_c(o,mm)=zb_c(o)+dx1_i(0)*T_nk(o)
+
+
+c         prob number of cells starts at an interface so only 
+c         +0.5d if that direction is on the level of a node
+          nx_prob_c(o,mm)=floor(x_prob_c(o,mm)/dx1_i(0)+0.5d0)
+          ny_prob_c(o,mm)=floor(y_prob_c(o,mm)/dx2_j(0)+0.5d0)
+          nz_prob_c(o,mm)=floor(z_prob_c(o,mm)/dx3_k(0)+0.5d0)
+
+      end do
+
 
 
       return
