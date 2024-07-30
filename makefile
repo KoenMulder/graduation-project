@@ -1,15 +1,35 @@
+FC      = gfortran
+OLEVEL  = -O2
+FOPTS   = -mcmodel=medium -fopenmp -Wall -Wextra -fcheck=all,no-array-temps
+FFLAGS	= $(OLEVEL) $(FOPTS)
 
-OBJECTS=main.o \
-        init.o \
-        eval.o \
-        bulb.o \
-        bicg.o \
-        pois.o \
-        pde.o
+SOURCE  = module.f90       \
+		  main.f90 	       \
+		  init.f90	       \
+		  bou.f90          \
+		  output.f90       \
+		  bubble.f90       \
+		  IBMidentify.f90  \
+		  IBMboucond.f90   \
+		  momentum.f90	   \
+		  masstransport.f90\
 
+OBJECTS = ${SOURCE:.f90=.o}
+
+EXEC	= run.exe
+
+# Rule to compile .f90 to .o
+%.o: %.f90
+	$(FC) $(FFLAGS) -o $@ -c $<
+
+# Default target to link the program together 
 run: $(OBJECTS)
-	gfortran $(OBJECTS) -O2 -mcmodel=medium -fopenmp -o run
-	rm -f *.o 
-.f.o:
-	gfortran -c -O2 -mcmodel=medium -fopenmp $<
+	$(FC) $(FFLAGS) -o $(EXEC) $(OBJECTS)
+	del *.o
+#	rm -f *.o
 
+# Subtargets
+clean:
+	@del *.o run.exe
+	@echo Completed makefile
+#	rm -f *.o run
