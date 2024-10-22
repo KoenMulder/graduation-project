@@ -3,16 +3,15 @@ OLEVEL  = -O2
 FOPTS   = -mcmodel=medium -fopenmp -Wall -Wextra -fcheck=all,no-array-temps
 FFLAGS	= $(OLEVEL) $(FOPTS)
 
-SOURCE  = module.f90       \
-		  main.f90 	       \
-		  init.f90	       \
-		  bou.f90          \
-		  output.f90       \
-		  bubble.f90       \
-		  IBMidentify.f90  \
-		  IBMboucond.f90   \
-		  momentum.f90	   \
-		  masstransport.f90\
+SOURCE  = module.f90   \
+		  main_new.f90 \
+		  init_new.f90 \
+          eval_new.f90 \
+		  output.f90   \
+          bulb_new.f90 \
+          pde_new.f90  \
+		  bubble.f90   \
+
 
 OBJECTS = ${SOURCE:.f90=.o}
 
@@ -25,11 +24,14 @@ EXEC	= run.exe
 # Default target to link the program together 
 run: $(OBJECTS)
 	$(FC) $(FFLAGS) -o $(EXEC) $(OBJECTS)
-	del *.o
+#	mkdir -p output
 #	rm -f *.o
 
 # Subtargets
 clean:
-	@del *.o run.exe
+	@del *.o
+	@del .\output\*.dat
+	@del run.exe
 	@echo Completed makefile
 #	rm -f *.o run
+

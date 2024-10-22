@@ -1,96 +1,109 @@
-program ElectrolyserSimulation
-    !!------------------------------------------------------------
-    !!  **Purpose:**
-    !!
-    !!      CFD-simulation of electrolyser with (multiple) bubble 
-    !!      growth and bubble detachment using Immersed Boundary
-    !!      Method and Artificial Compressibility for pressure.
-    !!
-    !!  **Info:**
-    !!      - Input parameters are listed in the paramdata-module.
-    !!      - Bubbles can be turned off, resulting in only the 
-    !!      concentration transport in the domain.
-    !!      - Uses openMP for parallelization.
-    !!
-    !!  **Credits:**
-    !!
-    !!      Code based on the implementation of MSc. F. 
-    !!      Khalighi.
-    !!
-    !!------------------------------------------------------------
-    use commondata
-    use paramdata
+program elec
+    use var2
     use omp_lib
     implicit none
-    real(8) :: wtime
+    real(8)  :: wtime, comptime
 
-    call omp_set_num_threads(48)
+    call omp_set_num_threads(nThreads)     
     wtime = omp_get_wtime()
 
-    ! Initialize data and apply initical conditions
     call initialize
 
-    ! Apply boundary conditions
-    call boundaryConditions
+    call write_inputParam
 
-    ! Define bubble(s)
-    call bubbleInitialize
+    call bou_u
+    call bou_w
+    call bou_v
 
-    ! Write info to screen
-    call writeStart
+    do m1=1,m1_max
+      comptime = omp_get_wtime()
+      do m2=1,m2_max
 
-    ! Main loop
-1   format(1A30,1I5)
-    do m1 = m1Start,mComp
-        do m2 = 1,mSave
-            call writeOutput(m1,m2,0)
+        call write_output
 
-            ! Identify cells and faces with corresponding bubble
-            call IBMidentify
+        call IBM
 
-            ! Apply BC to IB-cells (Immersed Boundary Method)
-            call IBMboucond
+        call bulb_c
+        call finding_u_IB
+        call finding_v_IB
+        call finding_w_IB
 
-            ! Central differencing on velocity momentum equation
-            call NSmomentum
+        call probe_IB_u
+        call bulb_u
+        
+        call probe_IB_v 
+        call bulb_v
 
-            ! potential and species concentration (mass) transport 
-            call Speciestransport
+        call probe_IB_w
+        call bulb_w
 
-            ! Compute mass flux H2 into bubble and determine new size
-            call bubbleMain
+        ! ---> contained in NSmomentum in F90 version 
+        call u
+        call v
+        call w
 
-            ! Bubble detachment model
+        call bou_rhu
+        call bou_rhw
+        call bou_rhv
 
-            totaltime = totaltime + dtime
+        call velocity
 
-! <<<<--------- Verify the above before continuing --------->>>> !
-            ! Todo: calculate forces on bubble
-            ! Todo: check detachment criterion
-            ! Todo: if detached: 
-                ! Todo: Check 1 cell distance between walls condition
-                ! Todo: if 1 cell distance present -> do nothing
+        call bou_u
+        call bou_w
+        call bou_v
+
+!omp parallel do
+        do k=1,km
+          do j=1,jm
+            do i=1,im
+              div(i,j,k)=(u1(i,j,k)-u1(i-1,j,k))/dx1(i)+ &
+                      (u2(i,j,k)-u2(i,j-1,k))/dx2(j)+ &
+                      (u3(i,j,k)-u3(i,j,k-1))/dx3(k) 
+            end do
+          end do
         end do
+        storage_p=p
+!omp parallel do
+        do k=1,km
+          do j=1,jm
+            do i=1,im
+              if (typ(i,j,k).eq.1) then
+                p(i,j,k) = storage_p(i,j,k) - rhoKOH*usou2*dtime*div(i,j,k)
+              end if
+            end do
+          end do
+        end do
+        call bou_p
+        ! ---> end NSmomentum
         
-        write(*,1) 'm1 iteration status: ', m1
 
-        if ( m1.gt.m1Start ) then
-            call writeOutput_SimData(m1)
-        end if
-        
+        ! ---> start species mass transport
+        call prep_phi
+        call spatial_phi
+        call bou_phi
+        call spatial_c
+        call bou_c
+        ! ---> end species mass transport
 
-        if ( (m1.eq.mComp).or.(BubbleBlock(1)%radius.ge.radiusCrit) ) then
-            call writeOutput_IBM
-            call writeOuput_Scalar
-            call writeOutput_Velocity
-            call writeOutput_NodePoint
+        time = time + dtime
 
-2           format(1A30,1E20.10,1A10)
-            write(*,2) 'Stopping at time: ', totaltime, ' [s]'
-            wtime = omp_get_wtime() - wtime
-            write(*,2) 'Total computing time: ', wtime, ' [s]'
+        call bubble_Main
 
-            stop
-        end if
+      end do
+
+      comptime = omp_get_wtime() - comptime
+1       format(1A30,1I5,1A11,1F11.5,1A4)
+      write(*,1) 'Completed m1: ', m1, ' at wtime: ', comptime, ' [s]'
+
+      if ( time.gt.0.125d0 ) then
+        stop 'Simulation completed'
+      end if
+
     end do
-end program ElectrolyserSimulation
+    write(*,*) 'End of computation'
+    wtime=omp_get_wtime()-wtime
+    write(*,*)'Wtime=',wtime
+
+    stop
+end program elec
+

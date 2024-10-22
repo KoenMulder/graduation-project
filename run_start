@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+#SBATCH --output=Res.txt
+#SBATCH --job-name=F77asF90_48_Final
+#SBATCH --nodes=1
+#SBATCH --ntasks=24
+#SBATCH --error=slurm-%j.err
+#SBATCH --output=slurm-%j.out
+#SBATCH --partition=mech.pf.q
+#SBATCH --time=480:59:00
+
+module load gcc
+
+make
+
+./run
