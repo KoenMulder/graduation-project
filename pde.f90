@@ -1,35 +1,38 @@
 subroutine u()
     use var2
     implicit none
-    real(8) ::  tp,ua,va,wa
+    real(8) ::  tp, ua, va, wa
 
-    storage_u=u1
-          
+    if ( rungIter.eq.1 ) then
+        storage_u = u1
+    end if
+    
+
 !$omp parallel do private(ua,va,wa,tp,i,j,k)
     do k=1,km
         do j=1,jm
-            do i=1,im-1
+            do i=1,im!-1 <<--- aparantly this is needed? If code breaks check this
                 ua = 0.5d0*(u1(i,j,k) + u1(i-1,j,k))
-                tp = -ua**2/dx1_i(i)
+                tp = -ua**2d0/dx1_i(i)
                 ua = 0.5d0*(u1(i+1,j,k) + u1(i,j,k))
-                tp= tp + ua**2/dx1_i(i)
- 
+                tp= tp + ua**2d0/dx1_i(i)
+    
                 va = 0.5d0*(u2(i+1,j-1,k) + u2(i,j-1,k))
                 tp = tp - 0.5d0*(u1(i,j-1,k) + u1(i,j,k))*va/dx2(j)
                 va = 0.5d0*(u2(i+1,j,k) + u2(i,j,k))
                 tp = tp + 0.5d0*(u1(i,j,k) + u1(i,j+1,k))*va/dx2(j)
- 
+    
                 wa = 0.5d0*(u3(i+1,j,k-1) + u3(i,j,k-1))
                 tp = tp - 0.5d0*(u1(i,j,k-1) + u1(i,j,k))*wa/dx3(k)
                 wa = 0.5d0*(u3(i+1,j,k) + u3(i,j,k))
                 tp = tp + 0.5d0*(u1(i,j,k) + u1(i,j,k+1))*wa/dx3(k)
- 
-                rhu(i,j,k) = storage_u(i,j,k) - tp*dtime &
-                            -nuKOH*dtime/dx1_i(i)*                        &
+    
+                rhu(i,j,k) = storage_u(i,j,k) - tp*dtime*RK_alpha(rungIter)    &
+                            - nuKOH*dtime/dx1_i(i)*RK_alpha(rungIter)*         &
                             ((u1(i,j,k) - u1(i-1,j,k))/dx1(i) - (u1(i+1,j,k) - u1(i,j,k))/dx1(i+1))     &
-                            -nuKOH*dtime/dx2(j)*  &
+                            - nuKOH*dtime/dx2(j)*RK_alpha(rungIter)*           &
                             ((u1(i,j,k) - u1(i,j-1,k))/dx2_j(j-1) - (u1(i,j+1,k) - u1(i,j,k))/dx2_j(j)) &
-                            -nuKOH*dtime/dx3(k)*  &
+                            - nuKOH*dtime/dx3(k)*RK_alpha(rungIter)*           &
                             ((u1(i,j,k) - u1(i,j,k-1))/dx3_k(k-1) - (u1(i,j,k+1) - u1(i,j,k))/dx3_k(k)) 
             end do
         end do
@@ -141,7 +144,9 @@ subroutine v()
     implicit none
     real(8) ::  tp,ua,va,wa
 
-    storage_v=u2
+    if ( rungIter.eq.1 ) then
+        storage_v = u2
+    end if
 
 !$omp parallel do private(ua,va,wa,tp,i,j,k)
     do k=1,km
@@ -153,25 +158,22 @@ subroutine v()
                 tp = tp + 0.5d0*(u2(i,j,k) + u2(i+1,j,k))*ua/dx1(i)
 
                 va = 0.5d0*(u2(i,j,k) + u2(i,j-1,k))
-                tp = tp - va**2/dx2_j(j)
+                tp = tp - va**2d0/dx2_j(j)
                 va = 0.5d0*(u2(i,j,k) + u2(i,j+1,k))
-                tp = tp + va**2/dx2_j(j)
+                tp = tp + va**2d0/dx2_j(j)
 
                 wa = 0.5d0*(u3(i,j,k-1) + u3(i,j+1,k-1))
                 tp = tp - 0.5d0*(u2(i,j,k-1) + u2(i,j,k))*wa/dx3(k)
                 wa = 0.5d0*(u3(i,j,k) + u3(i,j+1,k))
                 tp = tp + 0.5d0*(u2(i,j,k) + u2(i,j,k+1))*wa/dx3(k)
 
-                rhv(i,j,k) = storage_v(i,j,k) - tp*dtime  &
-                        -nuKOH*dtime/dx1(i)*  &
-                        ((u2(i,j,k)-u2(i-1,j,k))/dx1_i(i-1)   &
-                        -(u2(i+1,j,k)-u2(i,j,k))/dx1_i(i)) &
-                        -nuKOH*dtime/dx2_j(j)*    &
-                        ((u2(i,j,k)-u2(i,j-1,k))/dx2(j) &
-                        -(u2(i,j+1,k)-u2(i,j,k))/dx2(j+1)) &
-                        -nuKOH*dtime/dx3(k)*  &
-                        ((u2(i,j,k)-u2(i,j,k-1))/dx3_k(k-1) &
-                        -(u2(i,j,k+1)-u2(i,j,k))/dx3_k(k))
+                rhv(i,j,k) = storage_v(i,j,k) - tp*dtime*RK_alpha(rungIter)    &
+                        - nuKOH*dtime/dx1(i)*RK_alpha(rungIter)*               &
+                        ((u2(i,j,k) - u2(i-1,j,k))/dx1_i(i-1) - (u2(i+1,j,k) - u2(i,j,k))/dx1_i(i)) &
+                        - nuKOH*dtime/dx2_j(j)*RK_alpha(rungIter)*             &
+                        ((u2(i,j,k) - u2(i,j-1,k))/dx2(j) - (u2(i,j+1,k) - u2(i,j,k))/dx2(j+1))     &
+                        - nuKOH*dtime/dx3(k)*RK_alpha(rungIter)*               &
+                        ((u2(i,j,k) - u2(i,j,k-1))/dx3_k(k-1) - (u2(i,j,k+1) - u2(i,j,k))/dx3_k(k))
             end do
         end do
     end do
@@ -195,7 +197,8 @@ subroutine bou_rhv()
     ! Apply quiescent flow when StokesFlow is selected
     SELECT CASE (FlowCondPreset)
         CASE ('Stokes','free-slip')
-            u2(1:im,0,1:km) = 0d0
+            ! Do nothing
+            ! u2(1:im,0,1:km) = 0d0 <-- this preset is wrong
         CASE DEFAULT
             do k=1,km
                 do i=1,im
@@ -263,7 +266,9 @@ subroutine w()
     implicit none
     real(8) ::  tp,ua,va,wa
 
-    storage_w=u3
+    if ( rungIter.eq.1 ) then
+        storage_w = u3
+    end if
     
 !$omp parallel do private(ua,va,wa,tp,i,j,k)
      do k=1,km
@@ -274,26 +279,23 @@ subroutine w()
                 ua =  0.5d0*(u1(i,j,k)   + u1(i,j,k+1))
                 tp = tp + 0.5d0*(u3(i,j,k) + u3(i+1,j,k))*ua/dx1(i)
 
-                va=0.5d0*(u2(i,j-1,k)+u2(i,j-1,k+1))
-                tp=tp-0.5d0*(u3(i,j-1,k)+u3(i,j,k))*va/dx2(j)
-                va=0.5d0*(u2(i,j,k)+u2(i,j,k+1))
-                tp=tp+0.5d0*(u3(i,j,k)+u3(i,j+1,k))*va/dx2(j)
+                va = 0.5d0*(u2(i,j-1,k) + u2(i,j-1,k+1))
+                tp = tp - 0.5d0*(u3(i,j-1,k) + u3(i,j,k))*va/dx2(j)
+                va = 0.5d0*(u2(i,j,k) + u2(i,j,k+1))
+                tp = tp + 0.5d0*(u3(i,j,k) + u3(i,j+1,k))*va/dx2(j)
 
-                wa=0.5d0*(u3(i,j,k)+u3(i,j,k-1))
-                tp=tp-wa**2/dx3_k(k)
-                wa=0.5d0*(u3(i,j,k+1)+u3(i,j,k))
-                tp=tp+wa**2/dx3_k(k)
+                wa = 0.5d0*(u3(i,j,k) + u3(i,j,k-1))
+                tp = tp - wa**2d0/dx3_k(k)
+                wa = 0.5d0*(u3(i,j,k+1)+u3(i,j,k))
+                tp = tp + wa**2d0/dx3_k(k)
 
-                rhw(i,j,k)=storage_w(i,j,k)-tp*dtime &
-                        -nuKOH*dtime/dx1(i)*  &
-                        ((u3(i,j,k)-u3(i-1,j,k))/dx1_i(i-1)   &
-                        -(u3(i+1,j,k)-u3(i,j,k))/dx1_i(i))    &
-                        -nuKOH*dtime/dx2(j)*  &
-                        ((u3(i,j,k)-u3(i,j-1,k))/dx2_j(j-1)    &
-                        -(u3(i,j+1,k)-u3(i,j,k))/dx2_j(j))    &
-                        -nuKOH*dtime/dx3(k)*  &
-                        ((u3(i,j,k)-u3(i,j,k-1))/dx3(k) &
-                        -(u3(i,j,k+1)-u3(i,j,k))/dx3(k+1))
+                rhw(i,j,k) = storage_w(i,j,k) - tp*dtime*RK_alpha(rungIter)    &
+                            - nuKOH*dtime/dx1(i)*RK_alpha(rungIter)*           &
+                            ((u3(i,j,k) - u3(i-1,j,k))/dx1_i(i-1) - (u3(i+1,j,k) - u3(i,j,k))/dx1_i(i)) &
+                            - nuKOH*dtime/dx2(j)*RK_alpha(rungIter)*           &
+                            ((u3(i,j,k) - u3(i,j-1,k))/dx2_j(j-1) - (u3(i,j+1,k) - u3(i,j,k))/dx2_j(j)) &
+                            - nuKOH*dtime/dx3(k)*RK_alpha(rungIter)*           &
+                            ((u3(i,j,k) - u3(i,j,k-1))/dx3(k) - (u3(i,j,k+1) - u3(i,j,k))/dx3(k+1))
             end do
         end do
      end do
@@ -379,30 +381,58 @@ subroutine velocity()
 
 !$omp parallel do private(i,j,k)
     do k=1,km
-    do j=1,jm
-    do i=1,im
-        if(typ1(i,j,k).eq.1) then
-        u1(i,j,k)=u1(i,j,k) &
-      -dtime/rhoKOH/dx1_i(i)*(&
-              p(i+1,j,k)-p(i,j,k))
-        end if
+        do j=1,jm
+            do i=1,im
+                if(typ1(i,j,k).eq.1) then
+                    u1(i,j,k) = u1(i,j,k) - dtime/rhoKOH/dx1_i(i)*(p(i+1,j,k) - p(i,j,k))*RK_alpha(rungIter)
+                end if
 
-        if(typ2(i,j,k).eq.1) then
-        u2(i,j,k)=u2(i,j,k) &
-      -dtime/rhoKOH/dx2_j(j)&
-              *(p(i,j+1,k)-p(i,j,k))
-        end if
+                if(typ2(i,j,k).eq.1) then
+                    u2(i,j,k) = u2(i,j,k) - dtime/rhoKOH/dx2_j(j)*(p(i,j+1,k) - p(i,j,k))*RK_alpha(rungIter)
+                end if
 
-        if(typ3(i,j,k).eq.1) then
-        u3(i,j,k)=u3(i,j,k) &
-       -dtime/rhoKOH/dx3_k(k)*( &
-              p(i,j,k+1)-p(i,j,k))
-        end if
-    end do
-    end do
+                if(typ3(i,j,k).eq.1) then
+                    u3(i,j,k) = u3(i,j,k) - dtime/rhoKOH/dx3_k(k)*(p(i,j,k+1) - p(i,j,k))*RK_alpha(rungIter)
+                end if
+            end do
+        end do
     end do
 
 end subroutine velocity
+
+
+
+subroutine p_solve_ArtComp()
+    use var2
+    implicit none
+
+!omp parallel do
+    do k=1,km
+        do j=1,jm
+            do i=1,im
+                div(i,j,k) = (u1(i,j,k) - u1(i-1,j,k))/dx1(i) + &
+                             (u2(i,j,k) - u2(i,j-1,k))/dx2(j) + &
+                             (u3(i,j,k) - u3(i,j,k-1))/dx3(k) 
+            end do
+        end do
+    end do
+
+    if ( rungIter.eq.1 ) then
+        storage_p = p
+    end if
+    
+!omp parallel do
+    do k=1,km
+        do j=1,jm
+            do i=1,im
+                if (typ(i,j,k).eq.1) then
+                    p(i,j,k) = storage_p(i,j,k) - rhoKOH*usou2*dtime*div(i,j,k)*RK_alpha(rungIter)
+                end if
+            end do
+        end do
+    end do
+    
+end subroutine p_solve_ArtComp
 
 
 
@@ -460,22 +490,28 @@ subroutine bou_phi()
     use var2
     implicit none   
     real(8) :: az,bz,cz,fac,kka,kkc,kkae,kkce
-    real(8) :: Error_phi(0:im+1,0:jm+1,0:km+1), &
-           phi_old(0:im+1,0:jm+1,0:km+1)
+    ! Error_phi and phi_old are now also allocated in memory of init_new
+    ! real(8) :: Error_phi(0:im+1,0:jm+1,0:km+1), &
+    !        phi_old(0:im+1,0:jm+1,0:km+1)
 
-! c     phi1=phi(i=1)
-! c     phi0=phi(i=0)
+! c     phi1 = phi(i=1)
+! c     phi0 = phi(i=0)
 ! c     electrode at x=0: -condL*(phi1-phi0)/dx=ka*exp(aa*eta)+kc*exp(-ac*eta) 
 ! c     condL is conductivity at left boundary, ka>0, kc >0 
 ! c     kka=-0.5*ka*dx/condL < 0 
 ! c     kkc=-0.5*kc*dx/condL < 0
-! c     0.5*(phi1-phi0)=kka*exp(aa*eta)+kkc*exp(-ac*eta) 
-! c     (phi0+phi1)/2 = -eta + phiLe   (assume phi=potential - potential
-! c     electrode). 
-! c     phi1-phi0 = phi1-(-phi1-2*eta+2*phiLe)=2*phi1+2*eta-2*phiLe  
-! c     (phi1-phiLe + eta) = kka*exp(aa*eta)+kkc*exp(-ac*eta) 
-! c     -eta+kkc*exp(-ac*eta)+kka*exp(aa*eta) = phi1-phiLe  
-! c     solve eta_new using linearization (Newton method) near  previous eta
+        
+        ! eq.1: Butler-Volmer and Ohm's law
+        ! 0.5*(phi1 - phi0) = kka*exp(aa*eta) + kkc*exp(-ac*eta)
+        ! eq.2: electrode potenital plus a standard potential
+        ! phiLe = 0.5*(phi0 + phi1) + E^0 = constant
+        ! eq.3: overpotential at electrode
+        ! (phi0 + phi1)/2 = -eta + phiLe   (assume phi = potential - potential electrode). 
+
+! c     phi1-phi0 = phi1-(-phi1 - 2*eta + 2*phiLe) = 2*phi1 + 2*eta - 2*phiLe  
+! c     (phi1 - phiLe + eta) = kka*exp(aa*eta) + kkc*exp(-ac*eta) 
+! c     -eta + kkc*exp(-ac*eta) + kka*exp(aa*eta) = phi1 - phiLe  
+! c     Solve eta_new using linearization (Newton method) near  previous eta
 ! c     az*(eta_new - eta) +bz = cz with:
 ! c           cz = phi1-phiLe
 ! c           bz = -eta+kkc*exp(-ac*eta)+kka*exp(aa*eta)
@@ -487,28 +523,28 @@ subroutine bou_phi()
 ! c     compute aa, ac, ka, kc and ke
 !$omp parallel do private(cz,fac,kka,kkc,kkae,kkce,bz,az)
     do k=1,km
-    do j=1,jm
-     do i=0,im
-      conduct(i,j,k)=condfac*0.5d0*(c(i,j,k,2)+c(i+1,j,k,2)) 
-     end do
+        do j=1,jm
+            do i=0,im
+                conduct(i,j,k) = condfac*0.5d0*(c(i,j,k,2) + c(i+1,j,k,2)) 
+            end do
 
-     cz=phi(1,j,k)-phiLe
-! c      If needed perform the next 8 statements (Newton iteration) multiple times
-     fac = -0.5d0*dx1_i(0)/conduct(0,j,k)
-     kka = fac*ka(j,k)
-     kkc = fac*kc(j,k)
-     kkae = kka*exp(aa*eta(j,k))
-     kkce = kkc*exp(-ac*eta(j,k))      
-     bz=-eta(j,k)+kkce+kkae 
-     az=-1d0-ac*kkce+aa*kkae
-     eta(j,k)=eta(j,k) + (cz-bz)/az
-     phiL(j,k)=-eta(j,k)+phiLe
-! c      Impose phiLe at left side, like a Dirichlet boundary condition
-! c      Second order
-     phi(0,j,k)=2d0*phiL(j,k)-phi(1,j,k)
-     phi(im+1,j,k)=2d0*phiR-phi(im,j,k) 
+            cz=phi(1,j,k)-phiLe
+            ! If needed perform the next 8 statements (Newton iteration) multiple times
+            fac = -0.5d0*dx1_i(0)/conduct(0,j,k)
+            kka = fac*ka(j,k)
+            kkc = fac*kc(j,k)
+            kkae = kka*exp(aa*eta(j,k))
+            kkce = kkc*exp(-ac*eta(j,k))      
+            bz   = -eta(j,k) + kkce + kkae 
+            az   = -1d0 - ac*kkce + aa*kkae
+            eta(j,k)  = eta(j,k) + (cz-bz)/az
+            phiL(j,k) = -eta(j,k) + phiLe
 
-    end do
+            ! Impose phiLe at left side, like a Dirichlet boundary condition
+            ! Second order
+            phi(0,j,k)    = 2d0*phiL(j,k) - phi(1,j,k)
+            phi(im+1,j,k) = 2d0*phiR - phi(im,j,k) 
+        end do
     end do
 
      phi(0:im+1,0,1:km)=phi(0:im+1,1,1:km)
@@ -518,24 +554,26 @@ subroutine bou_phi()
 
 
     if (bubble) then
-      iter3=1
-      do k=0,km+1
-      do j=0,jm+1
-      do i=0,im+1
-       phi_old(i,j,k)=phi(i,j,k)
-      end do
-      end do
-      end do
-      call bulb_phi
+        iter3=1
+        do k=0,km+1
+            do j=0,jm+1
+                do i=0,im+1
+                    storage_phi(i,j,k)=phi(i,j,k)
+                end do
+            end do
+        end do
 
-      do k=0,km+1
-      do j=0,jm+1
-      do i=0,im+1
-       Error_phi(i,j,k)=abs(phi(i,j,k)-phi_old(i,j,k))              
-      end do
-      end do
-      end do
-      Max_Err_phi=maxval(Error_phi)
+        call bulb_phi
+
+        do k=0,km+1
+            do j=0,jm+1
+                do i=0,im+1
+                    Error_phi(i,j,k) = abs(phi(i,j,k) - storage_phi(i,j,k))              
+                end do
+            end do
+        end do
+
+        Max_Err_phi=maxval(Error_phi)
 
 ! c        if (iter3.gt.5000) then
 ! c         write(*,*)'Iteration problem in bulb_phi'
@@ -558,12 +596,11 @@ end subroutine bou_phi
 
 subroutine bulb_phi()
     use var2
-    implicit none   
+    implicit none
     integer ::   o,mm
     real(8) ::  c00,c01,c10,c11,xd,yd,zd,c0,c1
 
     mm=1
-
 
     do o=1,change-1
        i=x_IB(o)
@@ -591,10 +628,10 @@ subroutine bulb_phi()
       phi(nx_prob_C(o,mm),ny_prob_C(o,mm)+1,nz_prob_C(o,mm)+1)+ &
       xd*phi(nx_prob_C(o,mm)+1,ny_prob_C(o,mm)+1,nz_prob_C(o,mm)+1)
 
-       c0=c00*(1-yd)+c10*yd
-       c1=c01*(1-yd)+c11*yd
+       c0=c00*(1d0-yd)+c10*yd
+       c1=c01*(1d0-yd)+c11*yd
 
-       phi(i,j,k)=c0*(1-zd)+c1*zd
+       phi(i,j,k)=c0*(1d0-zd)+c1*zd
 
 
     end do
@@ -609,44 +646,44 @@ subroutine prep_phi()
     implicit none   
     real(8) :: coef0_tmp
 
-! c     determine matrix coefficients normalized by minus the diagonal element
-! c     only valid for solution of div(c * grad(phi))=0
+! determine matrix coefficients normalized by minus the diagonal element
+! only valid for solution of div(c * grad(phi))=0
 !$omp parallel do private(i,j,k)
     do k=0,km
-    do j=0,jm
-    do i=0,im
-    work1(i,j,k)=(c(i,j,k,2)+c(i+1,j,k,2))/dx1_i(1)
-    work2(i,j,k)=(c(i,j,k,2)+c(i,j+1,k,2))/dx2_j(1)
-    work3(i,j,k)=(c(i,j,k,2)+c(i,j,k+1,2))/dx3_k(1)
-    end do
-    end do
+        do j=0,jm
+            do i=0,im
+                work1(i,j,k) = (c(i,j,k,2) + c(i+1,j,k,2))/dx1_i(1)
+                work2(i,j,k) = (c(i,j,k,2) + c(i,j+1,k,2))/dx2_j(1)
+                work3(i,j,k) = (c(i,j,k,2) + c(i,j,k+1,2))/dx3_k(1)
+            end do
+        end do
     end do
     
 !$omp parallel do private(coef0_tmp,i,j,k)
     do k=1,km
-    do j=1,jm
-    do i=1,im
-    coef0_tmp=-work1(i-1,j,k)-work1(i,j,k) &
-            -work2(i,j-1,k)-work2(i,j,k) &
-            -work3(i,j,k-1)-work3(i,j,k)
+        do j=1,jm
+            do i=1,im
+                coef0_tmp = -work1(i-1,j,k) - work1(i,j,k) &
+                            -work2(i,j-1,k) - work2(i,j,k) &
+                            -work3(i,j,k-1) - work3(i,j,k)
 
-    coef1_phi(i,j,k)=work1(i-1,j,k)/coef0_tmp
-    coef2_phi(i,j,k)=work1(i,j,k)  /coef0_tmp
-    coef3_phi(i,j,k)=work2(i,j-1,k)/coef0_tmp
-    coef4_phi(i,j,k)=work2(i,j,k)  /coef0_tmp
-    coef5_phi(i,j,k)=work3(i,j,k-1)/coef0_tmp
-    coef6_phi(i,j,k)=work3(i,j,k)  /coef0_tmp
-    end do
-    end do
+                coef1_phi(i,j,k) = work1(i-1,j,k)/coef0_tmp
+                coef2_phi(i,j,k) = work1(i,j,k)  /coef0_tmp
+                coef3_phi(i,j,k) = work2(i,j-1,k)/coef0_tmp
+                coef4_phi(i,j,k) = work2(i,j,k)  /coef0_tmp
+                coef5_phi(i,j,k) = work3(i,j,k-1)/coef0_tmp
+                coef6_phi(i,j,k) = work3(i,j,k)  /coef0_tmp
+            end do
+        end do
     end do
     
-! c     compute kinetic prefactors
+! compute kinetic prefactors
     do k=1,km
-    do j=1,jm
-    ka(j,k)=ka0*(0.5d0*(c(0,j,k,2)+c(1,j,k,2))/c_ref(2))*&
-            sqrt(abs(0.5d0*(c(0,j,k,1)+c(1,j,k,1)))/c_ref(1)) 
-    kc(j,k)=kc0*0.5d0*(c(0,j,k,3)+c(1,j,k,3))/c_ref(3) 
-    end do
+        do j=1,jm
+            ka(j,k) = ka0*(0.5d0*(c(0,j,k,2)+c(1,j,k,2))/c_ref(2))*&
+                        sqrt(abs(0.5d0*(c(0,j,k,1)+c(1,j,k,1)))/c_ref(1)) 
+            kc(j,k) = kc0*0.5d0*(c(0,j,k,3)+c(1,j,k,3))/c_ref(3) 
+        end do
     end do
 
     ka(0,0:km)=ka(1,0:km)
@@ -666,29 +703,32 @@ end subroutine prep_phi
 subroutine spatial_phi()
     use var2
     implicit none   
-    real(8) :: phi_temp(0:im+1,0:jm+1,0:km+1)
+    ! real(8) :: phi_temp(0:im+1,0:jm+1,0:km+1)
 
-    phi_temp=phi
+    ! phi_temp = phi
+    storage_phi = phi
 
-! c     Jacobi iteration step
-! c     Relaxation factor 1, so phi(i) at the rhs cancels out 
+    ! Jacobi iteration step
+    ! Relaxation factor 1, so phi(i) at the rhs cancels out 
 !$omp parallel do private(i,j,k)
     do k=1,km
-    do j=1,jm
-    do i=1,im
-    if (typ(i,j,k).eq.1) then
-     phi_temp(i,j,k)=-(coef1_phi(i,j,k)*phi(i-1,j,k)+ &
-                 coef2_phi(i,j,k)*phi(i+1,j,k)+ &
-                 coef3_phi(i,j,k)*phi(i,j-1,k)+ &
-                 coef4_phi(i,j,k)*phi(i,j+1,k)+ &
-                 coef5_phi(i,j,k)*phi(i,j,k-1)+ &
-                 coef6_phi(i,j,k)*phi(i,j,k+1))
-    end if
-    end do
-    end do
+        do j=1,jm
+            do i=1,im
+                if (typ(i,j,k).eq.1) then
+                    storage_phi(i,j,k) = -(coef1_phi(i,j,k)*phi(i-1,j,k) + &
+                                            coef2_phi(i,j,k)*phi(i+1,j,k) + &
+                                            coef3_phi(i,j,k)*phi(i,j-1,k) + &
+                                            coef4_phi(i,j,k)*phi(i,j+1,k) + &
+                                            coef5_phi(i,j,k)*phi(i,j,k-1) + &
+                                            coef6_phi(i,j,k)*phi(i,j,k+1))
+                end if
+            end do
+        end do
     end do
 
-    phi=phi_temp
+    phi = storage_phi
+
+    ! phi=phi_temp
 end subroutine spatial_phi
 
 
@@ -698,21 +738,17 @@ subroutine bou_c()
     implicit none   
     integer ::   n
     real(8) :: dphi, ER_c, Max_Err_c
-    real(8), allocatable, dimension(:,:,:,:) :: Error_c, c_old
-    allocate(Error_c(0:im+1,0:jm+1,0:km+1,1:3),  c_old(0:im+1,0:jm+1,0:km+1,1:3))
 
-
-    Error_c(0:im+1,0:jm+1,0:km+1,1)=0d0
+    Error_c(0:im+1,0:jm+1,0:km+1,1:3)=0d0
 
 ! c     No values of c and phi are needed in the corner (dummy) points 
 ! c     (0,0),(im+1,0),(0,jm+1),(im+1,jm+1). 
-
     do k=1,km
         do j=1,jm   
-            dphi=conduct(0,j,k)*(phi(1,j,k)-phi(0,j,k))/Far           
-            c(0,j,k,1)=c(1,j,k,1)+0.5d0*dphi/dif(1)
-            c(0,j,k,2)=c(1,j,k,2)+0.5d0*dphi/dif(2)
-            c(0,j,k,3)=c(1,j,k,3)-dphi/dif(3)
+            dphi = conduct(0,j,k)*(phi(1,j,k) - phi(0,j,k))/Far           
+            c(0,j,k,1) = c(1,j,k,1) + 0.5d0*dphi/dif(1)
+            c(0,j,k,2) = c(1,j,k,2) + 0.5d0*dphi/dif(2)
+            c(0,j,k,3) = c(1,j,k,3) - dphi/dif(3)
         end do
     end do
 
@@ -720,7 +756,7 @@ subroutine bou_c()
 !$omp parallel do private(j,k)
         do k=1,km
             do j=1,jm 
-                c(im+1,j,k,n)=2d0*c_ref(n)-c(im,j,k,n)
+                c(im+1,j,k,n) = 2d0*c_ref(n) - c(im,j,k,n)
             end do
         end do
         c(0:im+1,0,1:km,n)=2d0*c_ref(n)-c(0:im+1,1,1:km,n)        
@@ -731,7 +767,7 @@ subroutine bou_c()
 
     iter4=0
     if (bubble) then
-        ER_c=1e-3
+        ER_c=1.0d-3
         Max_Err_c=5d0
         do while (Max_Err_c .gt. ER_c)
             do n=2,3
@@ -758,8 +794,6 @@ subroutine bou_c()
             Max_Err_c=maxval(Error_c)
         end do
     end if
-
-    deallocate(Error_c, c_old)
 end subroutine bou_c
 
 
@@ -768,9 +802,11 @@ subroutine spatial_c()
     use var2
     implicit none   
     integer ::   n
-    real(8) ::  ar1,ar2,ar3,rhs(1:im,1:jm,1:km)
+    real(8) ::  ar1,ar2,ar3
     
-       storage_c=c
+    if ( rungIter.eq.1 ) then
+        storage_c = c
+    end if
 
     do n=1,nmax
 
@@ -830,7 +866,7 @@ subroutine spatial_c()
             do j=1,jm
                 do i=1,im
                     if (typ(i,j,k).eq.1) then
-                        c(i,j,k,n)=storage_c(i,j,k,n) + dtime*rhs(i,j,k)
+                        c(i,j,k,n)=storage_c(i,j,k,n) + dtime*rhs(i,j,k)*RK_alpha(rungIter)
                     end if
                 end do
             end do
@@ -889,15 +925,15 @@ subroutine bulb_c()
       c(nx_prob_C(o,mm),ny_prob_C(o,mm)+1,nz_prob_C(o,mm)+1,n)+ &
       xd*c(nx_prob_C(o,mm)+1,ny_prob_C(o,mm)+1,nz_prob_C(o,mm)+1,n)
 
-       c0=c00*(1-yd)+c10*yd
-       c1=c01*(1-yd)+c11*yd
+       c0=c00*(1d0-yd)+c10*yd
+       c1=c01*(1d0-yd)+c11*yd
 
-       c_s(n)=c0*(1-zd)+c1*zd
+       c_s(n)=c0*(1d0-zd)+c1*zd
 
        end do 
 
        beta_c=rb(o)/dx1(1)
-       c(i,j,k,1)=(1+beta_c)*c_ref(1)-(beta_c)*c_s(1)
+       c(i,j,k,1)=(1d0 + beta_c)*c_ref(1)-(beta_c)*c_s(1)
 
 
        c(i,j,k,2)=c_s(2)
@@ -915,7 +951,7 @@ subroutine bulb_flux()
     integer ::   o
     real(8) :: term1,term2
 
-    bubbleMassflux=0d0
+    bubbleMassflux = 0d0
 
     do o=1,change-1
        i=x_IB(o)
@@ -931,14 +967,14 @@ subroutine bulb_flux()
            term1=0d0
            term2=0d0
           end if
-          bubbleMassflux=bubbleMassflux+term2
+          bubbleMassflux = bubbleMassflux + term2
        end if
        if (x1_plus(o) .eq. 1) then
           term1=-(-0.5d0*(c(i+1,j,k,1)+c(i,j,k,1))* &
                   u1(i,j,k)*dx2(j)*dx3(k))
           term2=-(dif(1)*(c(i+1,j,k,1)-c(i,j,k,1)) &
                  /dx1_i(i)*dx2(j)*dx3(k))
-          bubbleMassflux=bubbleMassflux+term2
+          bubbleMassflux = bubbleMassflux + term2
        end if
 
        if (x2_minus(o) .eq. 1) then
@@ -982,11 +1018,11 @@ subroutine domain_flux()
     implicit none   
     integer ::   o
     real(8) :: term1,term2,TERM3,TERM4,TERM5,TERM6, &
-          A12(1:jm,1:km),B12(1:jm,1:km), &
-          A21(1:im,1:km),B21(1:im,1:km), &
-          A22(1:im,1:km),B22(1:im,1:km), &
-          A32(1:im,1:jm),B32(1:im,1:jm), &
-          A31(1:im,1:jm),B31(1:im,1:jm), &
+        !   A12(1:jm,1:km),B12(1:jm,1:km), &
+        !   A21(1:im,1:km),B21(1:im,1:km), &
+        !   A22(1:im,1:km),B22(1:im,1:km), &
+        !   A32(1:im,1:jm),B32(1:im,1:jm), &
+        !   A31(1:im,1:jm),B31(1:im,1:jm), &
           Error
 
     do k=1,km
@@ -1060,7 +1096,7 @@ subroutine domain_flux()
         close(1,status='keep')
     end if
     if ( (m1.gt.1).and.(m2.eq.m2_max) ) then
-        open(unit=1,file='./output/H2_balance.dat',access='append')
+        open(unit=1,file='./output/H2_balance.dat',position='append')
         write(1,1) time, term1, term2, term3, term4, term5, term6,  &
                     bubbleMassflux, -balance_h2, Error, sum(A31), sum(A32),  &
                     sum(B31), sum(B32)
@@ -1078,9 +1114,7 @@ subroutine growing()
     integer ::   o
     real(8) :: delta_v,P_IB_fluid,P_outside, &
           P_bubble
-    ! real(8) :: pi
-    ! pi = 2d0*asin(1d0)
-
+          
 ! c     average pressure over the IB_fluid cells
     P_IB_fluid=0d0
     do o=1,change-1
@@ -1093,14 +1127,14 @@ subroutine growing()
     P_outside=P_IB_fluid/(change-1)
 
 ! c     laplace pressure equation
-    P_bubble=P_outside+(2d0/radius)*sigma+1d5
+    P_bubble = P_outside + (2d0/radius)*sigma + 1d5
 
 
-    delta_v=-1d0*bubbleMassflux*Rid*temp*dtime/P_bubble
+    delta_v = -1d0*bubbleMassflux*Rid*temp*dtime/P_bubble
 
     radius0=radius
 
-    radius=(3d0/4d0/pi*delta_v+radius**3)**(1d0/3d0)
+    radius=(3d0/4d0/pi*delta_v+radius**3d0)**(1d0/3d0)
     drdt=(radius-radius0)/dtime
 
 end subroutine growing
@@ -1124,7 +1158,7 @@ subroutine bulb_flux_force()
        k=z_IB(o)
 
         if (x1_minus(o) .eq. 1) then
-            term1=-(0.5d0*(u1(i-1,j,k)+u1(i,j,k)))**2*dx2(j)*dx3(k)
+            term1=-(0.5d0*(u1(i-1,j,k)+u1(i,j,k)))**2d0*dx2(j)*dx3(k)
             term2=-p(i,j,k)/rhoKOH*dx2(j)*dx3(k)
             term3=nuKOH*(u1(i,j,k)-u1(i-1,j,k))/dx1(i)*dx2(j)*dx3(k)
 
@@ -1146,7 +1180,7 @@ subroutine bulb_flux_force()
         end if
 
         if (x1_plus(o) .eq. 1) then
-            term1=-(-(0.5d0*(u1(i+1,j,k)+u1(i,j,k)))**2*dx2(j)*dx3(k))
+            term1=-(-(0.5d0*(u1(i+1,j,k)+u1(i,j,k)))**2d0*dx2(j)*dx3(k))
             term2=-(-p(i+1,j,k)/rhoKOH*dx2(j)*dx3(k))
             term3=-(nuKOH*(u1(i+1,j,k)-u1(i,j,k))/dx1(i+1)*dx2(j)*dx3(k)) 
             
@@ -1257,19 +1291,20 @@ subroutine domain_flux_force()
     implicit none   
     integer ::   o       
     real(8) :: term1,term2,term3,term4,term5,term6, &
-          u_i(1:im,1:km),u_o(1:im,1:km),   &
-          w_i(1:im,1:km),w_o(1:im,1:km), &
-          u_f(1:im,1:jm),u_b(1:im,1:jm), &
-          v_f(1:im,1:jm),v_b(1:im,1:jm), &
-          A11(1:jm,1:km),B11(1:jm,1:km), &
-          A12(1:jm,1:km),B12(1:jm,1:km), &
-          A13(1:jm,1:km),B13(1:jm,1:km), &
-          A21(1:im,1:km),B21(1:im,1:km), &
-          A22(1:im,1:km),B22(1:im,1:km), &
-          A23(1:im,1:km),B23(1:im,1:km), &
-          A31(1:im,1:jm),B31(1:im,1:jm), &
-          A32(1:im,1:jm),B32(1:im,1:jm), &
-          A33(1:im,1:jm),B33(1:im,1:jm),Error
+        !   u_i(1:im,1:km),u_o(1:im,1:km),   &
+        !   w_i(1:im,1:km),w_o(1:im,1:km), &
+        !   u_f(1:im,1:jm),u_b(1:im,1:jm), &
+        !   v_f(1:im,1:jm),v_b(1:im,1:jm), &
+        !   A11(1:jm,1:km),B11(1:jm,1:km), &
+        !   A12(1:jm,1:km),B12(1:jm,1:km), &
+        !   A13(1:jm,1:km),B13(1:jm,1:km), &
+        !   A21(1:im,1:km),B21(1:im,1:km), &
+        !   A22(1:im,1:km),B22(1:im,1:km), &
+        !   A23(1:im,1:km),B23(1:im,1:km), &
+        !   A31(1:im,1:jm),B31(1:im,1:jm), &
+        !   A32(1:im,1:jm),B32(1:im,1:jm), &
+        !   A33(1:im,1:jm),B33(1:im,1:jm),
+          Error
 
 
     do k=1,km
@@ -1451,8 +1486,8 @@ subroutine probe_IB_u()
 
        phiS_U(o)=datan2((x2(j)-yc),(x1_i(i)-xc))
 
-       thetaS_U(o)=acos((x3(k)-zc)/sqrt((x1_i(i)-xc)**2+ &
-       (x2(j)-yc)**2+(x3(k)-zc)**2))
+       thetaS_U(o)=acos((x3(k)-zc)/sqrt((x1_i(i)-xc)**2d0+ &
+       (x2(j)-yc)**2d0+(x3(k)-zc)**2d0))
 
 
        T_ni_U(o)=cos(phiS_U(o))*sin(thetaS_U(o))
@@ -1469,7 +1504,7 @@ subroutine probe_IB_u()
 
 ! c        initialise x-direction
 ! c        Normal distance between interface and bubble centre
-       rnode_U=sqrt((x1_i(i)-xc)**2+(x2(j)-yc)**2+(x3(k)-zc)**2)
+       rnode_U=sqrt((x1_i(i)-xc)**2d0+(x2(j)-yc)**2d0+(x3(k)-zc)**2d0)
 
 
 ! c        normal distance of interface to bubble surface 
@@ -1492,13 +1527,28 @@ subroutine probe_IB_u()
        ny_prob_UU(o,mm)=floor(y_prob_U(o,mm)/dx2_j(0)+0.5d0)
        nz_prob_UU(o,mm)=floor(z_prob_U(o,mm)/dx3_k(0)+0.5d0)
 
+        ! Check whether the probe is within the domain
+       call chckProbeBounds(nx_prob_UU(o,mm), 0, im+1,'x-UU')
+       call chckProbeBounds(ny_prob_UU(o,mm), 0, jm+1,'y-UU')
+       call chckProbeBounds(nz_prob_UU(o,mm), 0, km+1,'z-UU')
+
        nx_prob_UV(o,mm)=floor(x_prob_U(o,mm)/dx1_i(0)+0.5d0)
        ny_prob_UV(o,mm)=floor(y_prob_U(o,mm)/dx2_j(0))
        nz_prob_UV(o,mm)=floor(z_prob_U(o,mm)/dx3_k(0)+0.5d0)
 
+       ! Check whether the probe is within the domain
+       call chckProbeBounds(nx_prob_UV(o,mm),0,im+1,'x-UV')
+       call chckProbeBounds(ny_prob_UV(o,mm),0,jm+1,'y-UV')
+       call chckProbeBounds(nz_prob_UV(o,mm),0,km+1,'z-UV')
+
        nx_prob_UW(o,mm)=floor(x_prob_U(o,mm)/dx1_i(0)+0.5d0)
        ny_prob_UW(o,mm)=floor(y_prob_U(o,mm)/dx2_j(0)+0.5d0)
        nz_prob_UW(o,mm)=floor(z_prob_U(o,mm)/dx3_k(0))
+
+        ! Check whether the probe is within the domain
+       call chckProbeBounds(nx_prob_UW(o,mm),0,im+1,'x-UW')
+       call chckProbeBounds(ny_prob_UW(o,mm),0,jm+1,'y-UW')
+       call chckProbeBounds(nz_prob_UW(o,mm),0,km+1,'z-UW')
 
     end do
 end subroutine probe_IB_u
@@ -1517,11 +1567,12 @@ subroutine bulb_u()
     real(8) :: unis,utis,usis
     real(8) :: uni,uti,usi
     real(8) :: R_IB_U,R_P_U
-    real(8) ::  xd,yd,zd,beta_U, u1_temp(0:im+1,0:jm+1,0:km+1)
+    real(8) ::  xd,yd,zd,beta_U
     real(8) ::  c00,c10,c01,c11,c0,c1
+    ! real(8) :: u1_temp(0:im+1,0:jm+1,0:km+1)
 
     mm=1
-    u1_temp=u1
+    u1_temp = u1
     do o=1,o_u
 
         i=x_IB_U(o)
@@ -1549,10 +1600,10 @@ subroutine bulb_u()
      u1(nx_prob_UU(o,mm),ny_prob_UU(o,mm)+1,nz_prob_UU(o,mm)+1)+ &
      xd*u1(nx_prob_UU(o,mm)+1,ny_prob_UU(o,mm)+1,nz_prob_UU(o,mm)+1)
 
-    c0=c00*(1-yd)+c10*yd
-    c1=c01*(1-yd)+c11*yd
+    c0=c00*(1d0-yd)+c10*yd
+    c1=c01*(1d0-yd)+c11*yd
 
-    u1i_ref=c0*(1-zd)+c1*zd
+    u1i_ref=c0*(1d0-zd)+c1*zd
 
 
     ! c     y-component u1
@@ -1577,10 +1628,10 @@ subroutine bulb_u()
      u2(nx_prob_UV(o,mm),ny_prob_UV(o,mm)+1,nz_prob_UV(o,mm)+1)+ &
      xd*u2(nx_prob_UV(o,mm)+1,ny_prob_UV(o,mm)+1,nz_prob_UV(o,mm)+1)
 
-    c0=c00*(1-yd)+c10*yd
-    c1=c01*(1-yd)+c11*yd
+    c0=c00*(1d0-yd)+c10*yd
+    c1=c01*(1d0-yd)+c11*yd
 
-    u2i_ref=c0*(1-zd)+c1*zd
+    u2i_ref=c0*(1d0-zd)+c1*zd
 
 ! c     z-component u1
 
@@ -1604,10 +1655,10 @@ subroutine bulb_u()
      u3(nx_prob_UW(o,mm),ny_prob_UW(o,mm)+1,nz_prob_UW(o,mm)+1)+ &
      xd*u3(nx_prob_UW(o,mm)+1,ny_prob_UW(o,mm)+1,nz_prob_UW(o,mm)+1)
 
-    c0=c00*(1-yd)+c10*yd
-    c1=c01*(1-yd)+c11*yd
+    c0=c00*(1d0-yd)+c10*yd
+    c1=c01*(1d0-yd)+c11*yd
 
-    u3i_ref=c0*(1-zd)+c1*zd
+    u3i_ref=c0*(1d0-zd)+c1*zd
 
 ! c     Translate Cartesian velocities to spherical velocities
 ! c     Look at bulb.f for specification on each T 
@@ -1736,7 +1787,7 @@ subroutine probe_IB_V()
 
        phiS_V(o)=datan2((x2_j(j)-yc),(x1(i)-xc))
 
-       thetaS_V(o)=acos((x3(k)-zc)/sqrt((x1(i)-xc)**2+ (x2_j(j)-yc)**2+(x3(k)-zc)**2))
+       thetaS_V(o)=acos((x3(k)-zc)/sqrt((x1(i)-xc)**2d0+ (x2_j(j)-yc)**2d0+(x3(k)-zc)**2d0))
 
 
        T_ni_V(o)=cos(phiS_V(o))*sin(thetaS_V(o))
@@ -1753,7 +1804,7 @@ subroutine probe_IB_V()
 
 ! c        initialise x-direction
 ! c        Normal distance between interface and bubble centre
-       rnode_V=sqrt((x1(i)-xc)**2+(x2_j(j)-yc)**2+(x3(k)-zc)**2)
+       rnode_V=sqrt((x1(i)-xc)**2d0+(x2_j(j)-yc)**2d0+(x3(k)-zc)**2d0)
 
 
 ! c        normal distance of interface to bubble surface 
@@ -1774,13 +1825,28 @@ subroutine probe_IB_V()
        ny_prob_VU(o,mm)=floor(y_prob_V(o,mm)/dx2_j(0)+0.5d0)
        nz_prob_VU(o,mm)=floor(z_prob_V(o,mm)/dx3_k(0)+0.5d0)
 
+        ! Check whether the probe is within the domain
+       call chckProbeBounds(nx_prob_VU(o,mm),0,im+1,'x-VU')
+       call chckProbeBounds(ny_prob_VU(o,mm),0,jm+1,'y-VU')
+       call chckProbeBounds(nz_prob_VU(o,mm),0,km+1,'z-VU')
+
        nx_prob_VV(o,mm)=floor(x_prob_V(o,mm)/dx1_i(0)+0.5d0)
        ny_prob_VV(o,mm)=floor(y_prob_V(o,mm)/dx2_j(0))
        nz_prob_VV(o,mm)=floor(z_prob_V(o,mm)/dx3_k(0)+0.5d0)
 
+        ! Check whether the probe is within the domain
+       call chckProbeBounds(nx_prob_VV(o,mm),0,im+1,'x-VV')
+       call chckProbeBounds(ny_prob_VV(o,mm),0,jm+1,'y-VV')
+       call chckProbeBounds(nz_prob_VV(o,mm),0,km+1,'z-VV')
+
        nx_prob_VW(o,mm)=floor(x_prob_V(o,mm)/dx1_i(0)+0.5d0)
        ny_prob_VW(o,mm)=floor(y_prob_V(o,mm)/dx2_j(0)+0.5d0)
        nz_prob_VW(o,mm)=floor(z_prob_V(o,mm)/dx3_k(0))
+
+        ! Check whether the probe is within the domain
+       call chckProbeBounds(nx_prob_VW(o,mm),0,im+1,'x-VW')
+       call chckProbeBounds(ny_prob_VW(o,mm),0,jm+1,'y-VW')
+       call chckProbeBounds(nz_prob_VW(o,mm),0,km+1,'z-VW')
 
     end do
 end subroutine probe_IB_V
@@ -1801,7 +1867,7 @@ subroutine bulb_v()
     real(8) :: unjs,utjs,usjs
     real(8) :: unj,utj,usj,beta_V
     real(8) :: R_IB_V,R_P_V
-    real(8) :: u2_temp(0:im+1,0:jm+1,0:km+1)
+    ! real(8) :: u2_temp(0:im+1,0:jm+1,0:km+1)
 
     u2_temp=u2
     mm=1
@@ -1833,10 +1899,10 @@ subroutine bulb_v()
      u1(nx_prob_VU(o,mm),ny_prob_VU(o,mm)+1,nz_prob_VU(o,mm)+1)+ &
      xd*u1(nx_prob_VU(o,mm)+1,ny_prob_VU(o,mm)+1,nz_prob_VU(o,mm)+1)
 
-    c0=c00*(1-yd)+c10*yd
-    c1=c01*(1-yd)+c11*yd
+    c0=c00*(1d0-yd)+c10*yd
+    c1=c01*(1d0-yd)+c11*yd
 
-    u1j_ref=c0*(1-zd)+c1*zd
+    u1j_ref=c0*(1d0-zd)+c1*zd
 
 
 ! c     y-component u2
@@ -1862,10 +1928,10 @@ subroutine bulb_v()
      u2(nx_prob_VV(o,mm),ny_prob_VV(o,mm)+1,nz_prob_VV(o,mm)+1)+ &
      xd*u2(nx_prob_VV(o,mm)+1,ny_prob_VV(o,mm)+1,nz_prob_VV(o,mm)+1)
 
-    c0=c00*(1-yd)+c10*yd
-    c1=c01*(1-yd)+c11*yd
+    c0=c00*(1d0-yd)+c10*yd
+    c1=c01*(1d0-yd)+c11*yd
 
-    u2j_ref=c0*(1-zd)+c1*zd
+    u2j_ref=c0*(1d0-zd)+c1*zd
 
 ! c      z-component u2
 
@@ -1890,10 +1956,10 @@ subroutine bulb_v()
      u3(nx_prob_VW(o,mm),ny_prob_VW(o,mm)+1,nz_prob_VW(o,mm)+1)+ &
      xd*u3(nx_prob_VW(o,mm)+1,ny_prob_VW(o,mm)+1,nz_prob_VW(o,mm)+1)
 
-    c0=c00*(1-yd)+c10*yd
-    c1=c01*(1-yd)+c11*yd
+    c0=c00*(1d0-yd)+c10*yd
+    c1=c01*(1d0-yd)+c11*yd
 
-    u3j_ref=c0*(1-zd)+c1*zd
+    u3j_ref=c0*(1d0-zd)+c1*zd
 
       unj_ref = (u1j_ref - dxcdt)*T_ni_V(o) + &
                 (u2j_ref - dycdt)*T_nj_V(o) + &
@@ -2013,7 +2079,7 @@ subroutine probe_IB_W()
 
        phiS_W(o)=datan2((x2(j)-yc),(x1(i)-xc))
 
-       thetaS_W(o)=acos((x3_k(k)-zc)/sqrt((x1(i)-xc)**2+(x2(j)-yc)**2+(x3_k(k)-zc)**2))
+       thetaS_W(o)=acos((x3_k(k)-zc)/sqrt((x1(i)-xc)**2d0+(x2(j)-yc)**2d0+(x3_k(k)-zc)**2d0))
 
 
        T_ni_W(o)=cos(phiS_W(o))*sin(thetaS_W(o))
@@ -2030,7 +2096,7 @@ subroutine probe_IB_W()
 
 ! c        initialise x-direction
 ! c        Normal distance between interface and bubble centre
-       rnode_W=sqrt((x1(i)-xc)**2+(x2(j)-yc)**2+(x3_k(k)-zc)**2)
+       rnode_W=sqrt((x1(i)-xc)**2d0+(x2(j)-yc)**2d0+(x3_k(k)-zc)**2d0)
 
 
 ! c        normal distance of interface to bubble surface 
@@ -2054,13 +2120,28 @@ subroutine probe_IB_W()
        ny_prob_WU(o,mm)=floor(y_prob_W(o,mm)/dx2_j(0)+0.5d0)
        nz_prob_WU(o,mm)=floor(z_prob_W(o,mm)/dx3_k(0)+0.5d0)
 
+        ! Check whether the probe is within the domain
+       call chckProbeBounds(nx_prob_WU(o,mm),0,im+1,'x-WU')
+       call chckProbeBounds(ny_prob_WU(o,mm),0,jm+1,'y-WU')
+       call chckProbeBounds(nz_prob_WU(o,mm),0,km+1,'z-WU')
+
        nx_prob_WV(o,mm)=floor(x_prob_W(o,mm)/dx1_i(0)+0.5d0)
        ny_prob_WV(o,mm)=floor(y_prob_W(o,mm)/dx2_j(0))
        nz_prob_WV(o,mm)=floor(z_prob_W(o,mm)/dx3_k(0)+0.5d0)
 
+        ! Check whether the probe is within the domain
+       call chckProbeBounds(nx_prob_WV(o,mm),0,im+1,'x-WV')
+       call chckProbeBounds(ny_prob_WV(o,mm),0,jm+1,'y-WV')
+       call chckProbeBounds(nz_prob_WV(o,mm),0,km+1,'z-WV')
+
        nx_prob_WW(o,mm)=floor(x_prob_W(o,mm)/dx1_i(0)+0.5d0)
        ny_prob_WW(o,mm)=floor(y_prob_W(o,mm)/dx2_j(0)+0.5d0)
        nz_prob_WW(o,mm)=floor(z_prob_W(o,mm)/dx3_k(0))
+
+        ! Check whether the probe is within the domain
+       call chckProbeBounds(nx_prob_WW(o,mm),0,im+1,'x-WW')
+       call chckProbeBounds(ny_prob_WW(o,mm),0,jm+1,'y-WW')
+       call chckProbeBounds(nz_prob_WW(o,mm),0,km+1,'z-WW')
 
     end do
 end subroutine probe_IB_W
@@ -2078,9 +2159,10 @@ subroutine bulb_w()
     real(8) ::  xd,yd,zd
     real(8) ::  c00,c10,c01,c11,c0,c1
     real(8) ::  u_star,v_star,w_star
-    real(8) ::  unks,utks,usks,u3_temp(0:im+1,0:jm+1,0:km+1)
+    real(8) ::  unks,utks,usks
     real(8) ::  unk,utk,usk,beta_W
     real(8) ::  R_IB_W,R_P_W
+    ! real(8) :: u3_temp(0:im+1,0:jm+1,0:km+1)
 
     u3_temp=u3
     mm=1
@@ -2112,10 +2194,10 @@ subroutine bulb_w()
      u1(nx_prob_WU(o,mm),ny_prob_WU(o,mm)+1,nz_prob_WU(o,mm)+1)+&
      xd*u1(nx_prob_WU(o,mm)+1,ny_prob_WU(o,mm)+1,nz_prob_WU(o,mm)+1)
 
-    c0=c00*(1-yd)+c10*yd
-    c1=c01*(1-yd)+c11*yd
+    c0=c00*(1d0-yd)+c10*yd
+    c1=c01*(1d0-yd)+c11*yd
 
-    u1k_ref=c0*(1-zd)+c1*zd
+    u1k_ref=c0*(1d0-zd)+c1*zd
 
 
 ! c       y-component u3
@@ -2141,10 +2223,10 @@ subroutine bulb_w()
      u2(nx_prob_WV(o,mm),ny_prob_WV(o,mm)+1,nz_prob_WV(o,mm)+1)+&
      xd*u2(nx_prob_WV(o,mm)+1,ny_prob_WV(o,mm)+1,nz_prob_WV(o,mm)+1)
 
-    c0=c00*(1-yd)+c10*yd
-    c1=c01*(1-yd)+c11*yd
+    c0=c00*(1d0-yd)+c10*yd
+    c1=c01*(1d0-yd)+c11*yd
 
-    u2k_ref=c0*(1-zd)+c1*zd
+    u2k_ref=c0*(1d0-zd)+c1*zd
 
 ! c     z-component u3
 
@@ -2168,10 +2250,10 @@ subroutine bulb_w()
      u3(nx_prob_WW(o,mm),ny_prob_WW(o,mm)+1,nz_prob_WW(o,mm)+1)+&
      xd*u3(nx_prob_WW(o,mm)+1,ny_prob_WW(o,mm)+1,nz_prob_WW(o,mm)+1)
 
-    c0=c00*(1-yd)+c10*yd
-    c1=c01*(1-yd)+c11*yd
+    c0=c00*(1d0-yd)+c10*yd
+    c1=c01*(1d0-yd)+c11*yd
 
-    u3k_ref=c0*(1-zd)+c1*zd
+    u3k_ref=c0*(1d0-zd)+c1*zd
 
     unk_ref = (u1k_ref - dxcdt)*T_ni_W(o) + &
               (u2k_ref - dycdt)*T_nj_W(o) + &
@@ -2228,8 +2310,9 @@ end subroutine bulb_w
 subroutine bulb_force_x()
     use var2
     implicit none
-    integer ::   o,typ_force_x(0:im+1,0:jm+1,0:km+1)
+    integer :: o
     real(8) :: term1,term2,term3,total_up,total_bellow
+    ! integer :: typ_force_x(0:im+1,0:jm+1,0:km+1)
 
     total=0d0
     total_bellow=0d0
@@ -2244,7 +2327,7 @@ subroutine bulb_force_x()
     do j=0,jm+1
     do i=0,im+1
 
-       if ((x1_i(i)-xc)**2+(x2(j)-yc)**2+(x3(k)-zc)**2.gt.radius**2) then
+       if ((x1_i(i)-xc)**2d0+(x2(j)-yc)**2d0+(x3(k)-zc)**2d0.gt.radius**2d0) then
           typ_force_x(i,j,k)=1
        end if
     end do
@@ -2265,7 +2348,7 @@ subroutine bulb_force_x()
        k=z_IB_u(o)
 
        if(typ_force_x(i+1,j,k).eq.1) then
-        !  term1=-(-(0.5d0*(u1(i+1,j,k)+u1(i,j,k)))**2*dx2(j)*dx3(k))
+        !  term1=-(-(0.5d0*(u1(i+1,j,k)+u1(i,j,k)))**2d0*dx2(j)*dx3(k))
          term2=-(-p(i+1,j,k)/rhoKOH*dx2(j)*dx3(k))
          term3=-(nuKOH*(u1(i+1,j,k)-u1(i,j,k))/dx1(i+1)*dx2(j)*dx3(k))    
          total=total+term1+term2+term3
@@ -2277,7 +2360,7 @@ subroutine bulb_force_x()
        end if
 
        if(typ_force_x(i-1,j,k).eq.1) then
-        !  term1=-(0.5d0*(u1(i-1,j,k)+u1(i,j,k)))**2*dx2(j)*dx3(k)
+        !  term1=-(0.5d0*(u1(i-1,j,k)+u1(i,j,k)))**2d0*dx2(j)*dx3(k)
          term2=-p(i,j,k)/rhoKOH*dx2(j)*dx3(k)
          term3=nuKOH*(u1(i,j,k)-u1(i-1,j,k))/dx1(i)*dx2(j)*dx3(k)
          total=total+term1+term2+term3
@@ -2353,7 +2436,7 @@ subroutine bulb_force_x()
             close(1,status='keep')
         end if
         if ( (m1.gt.1).and.(m2.eq.m2_max) ) then
-            open(unit=1,file='./output/FxBubble_top_bottom.dat',access='append')
+            open(unit=1,file='./output/FxBubble_top_bottom.dat',position='append')
             write(1,1) time, total_up, total_bellow, FxCOM
             close(1,status='keep')
         end if
@@ -2369,15 +2452,16 @@ subroutine domain_flux_force_x()
     use var2   
     implicit none   
     real(8) :: term1,term2,term3,term4,term5,term6, &
-          A11(1:jm,1:km),B11(1:jm,1:km), &
-          A12(1:jm,1:km),B12(1:jm,1:km), &
-          A13(1:jm,1:km),B13(1:jm,1:km), &
-          A21(1:im,1:km),B21(1:im,1:km), &
-          A22(1:im,1:km),B22(1:im,1:km), &
-          A23(1:im,1:km),B23(1:im,1:km), &
-          A31(1:im,1:jm),B31(1:im,1:jm), &
-          A32(1:im,1:jm),B32(1:im,1:jm), &
-          A33(1:im,1:jm),B33(1:im,1:jm),Error
+        !   A11(1:jm,1:km),B11(1:jm,1:km), &
+        !   A12(1:jm,1:km),B12(1:jm,1:km), &
+        !   A13(1:jm,1:km),B13(1:jm,1:km), &
+        !   A21(1:im,1:km),B21(1:im,1:km), &
+        !   A22(1:im,1:km),B22(1:im,1:km), &
+        !   A23(1:im,1:km),B23(1:im,1:km), &
+        !   A31(1:im,1:jm),B31(1:im,1:jm), &
+        !   A32(1:im,1:jm),B32(1:im,1:jm), &
+        !   A33(1:im,1:jm),B33(1:im,1:jm),
+          Error
 
     a11=0d0
     b11=0d0
@@ -2404,9 +2488,9 @@ subroutine domain_flux_force_x()
     do k=1,km
     do j=1,jm
 
-       A11(j,k)=-(-(0.5d0*(u1(0,j,k)+u1(1,j,k)))**2&
+       A11(j,k)=-(-(0.5d0*(u1(0,j,k)+u1(1,j,k)))**2d0&
                 *dx2(j)*dx3(k))
-       B11(j,k)=-(0.5d0*(u1(im,j,k)+u1(im-1,j,k)))**2&
+       B11(j,k)=-(0.5d0*(u1(im,j,k)+u1(im-1,j,k)))**2d0&
                 *dx2(j)*dx3(k) 
 
        A12(j,k)=-(-p(1,j,k)*dx2(j)*dx3(k)/rhoKOH)
@@ -2474,7 +2558,7 @@ if ( .false. ) then
         close(1,status='keep')
     end if
     if ( (m1.gt.1).and.(m2.eq.m2_max) ) then
-        open(unit=1,file='./output/FxDomain.dat',access='append')
+        open(unit=1,file='./output/FxDomain.dat',position='append')
         write(1,1) time, term1, term2, term3, term4, term5,     &
                     term6, total, Error
         close(1,status='keep')
@@ -2500,8 +2584,9 @@ subroutine bulb_force_y()
     !!
     use var2  
     implicit none    
-    integer ::   o,typ_force_y(0:im+1,0:jm+1,0:km+1)
+    integer :: o
     real(8) :: term1,term2,term3,total_up,total_bellow
+    ! integer :: typ_force_y(0:im+1,0:jm+1,0:km+1)
 
     total=0d0
     total_up=0d0
@@ -2517,8 +2602,8 @@ subroutine bulb_force_y()
     do i=0,im+1
 
 
-      if ((x1(i)-xc)**2+(x2_j(j)-yc)**2 &
-      +(x3(k)-zc)**2.gt.radius**2) then
+      if ((x1(i)-xc)**2d0+(x2_j(j)-yc)**2d0 &
+      +(x3(k)-zc)**2d0.gt.radius**2d0) then
           typ_force_y(i,j,k)=1
       end if
     end do
@@ -2575,7 +2660,7 @@ subroutine bulb_force_y()
 
        if(typ_force_y(i,j+1,k).eq.1) then
 
-        !  term1=-(-(0.5d0*(u2(i,j,k)+u2(i,j+1,k)))**2*dx1(i)*dx3(k))
+        !  term1=-(-(0.5d0*(u2(i,j,k)+u2(i,j+1,k)))**2d0*dx1(i)*dx3(k))
          term2=-(-p(i,j+1,k)/rhoKOH*dx1(i)*dx3(k))    
          term3=-(nuKOH*(u2(i,j+1,k)-u2(i,j,k))/dx2_j(j)*dx1(i)*dx3(k))       
          total=total+term1+term2+term3
@@ -2589,7 +2674,7 @@ subroutine bulb_force_y()
 
        if(typ_force_y(i,j-1,k).eq.1) then
 
-        !  term1=-(0.5d0*(u2(i,j,k)+u2(i,j-1,k)))**2*dx1(i)*dx3(k)
+        !  term1=-(0.5d0*(u2(i,j,k)+u2(i,j-1,k)))**2d0*dx1(i)*dx3(k)
          term2=-p(i,j,k)/rhoKOH*dx1(i)*dx3(k)
          term3=nuKOH*(u2(i,j,k)-u2(i,j-1,k))/dx2_j(j-1)*dx1(i)*dx3(k)     
          total=total+term1+term2+term3
@@ -2642,7 +2727,7 @@ subroutine bulb_force_y()
             close(1,status='keep')
         end if
         if ( (m1.gt.1).and.(m2.eq.m2_max) ) then
-            open(unit=1,file='./output/FyBubble_top_bottom.dat',access='append')
+            open(unit=1,file='./output/FyBubble_top_bottom.dat',position='append')
             write(1,1) time, total_up, total_bellow, FyCOM
             close(1,status='keep')
         end if
@@ -2657,15 +2742,16 @@ subroutine domain_flux_force_y()
     use var2
     implicit none
     real(8) :: term1,term2,term3,term4,term5,term6, &
-          A11(1:jm,1:km),B11(1:jm,1:km), &
-          A12(1:jm,1:km),B12(1:jm,1:km), &
-          A13(1:jm,1:km),B13(1:jm,1:km), &
-          A21(1:im,1:km),B21(1:im,1:km), &
-          A22(1:im,1:km),B22(1:im,1:km), &
-          A23(1:im,1:km),B23(1:im,1:km), &
-          A31(1:im,1:jm),B31(1:im,1:jm), &
-          A32(1:im,1:jm),B32(1:im,1:jm), &
-          A33(1:im,1:jm),B33(1:im,1:jm),Error
+        !   A11(1:jm,1:km),B11(1:jm,1:km), &
+        !   A12(1:jm,1:km),B12(1:jm,1:km), &
+        !   A13(1:jm,1:km),B13(1:jm,1:km), &
+        !   A21(1:im,1:km),B21(1:im,1:km), &
+        !   A22(1:im,1:km),B22(1:im,1:km), &
+        !   A23(1:im,1:km),B23(1:im,1:km), &
+        !   A31(1:im,1:jm),B31(1:im,1:jm), &
+        !   A32(1:im,1:jm),B32(1:im,1:jm), &
+        !   A33(1:im,1:jm),B33(1:im,1:jm),
+          Error
 
 
     a11=0d0
@@ -2708,9 +2794,9 @@ subroutine domain_flux_force_y()
 
     do k=1,km
     do i=1,im
-      A21(i,k)=-(-(0.5d0*(u2(i,0,k)+u2(i,1,k)))**2 &
+      A21(i,k)=-(-(0.5d0*(u2(i,0,k)+u2(i,1,k)))**2d0 &
               *dx1(i)*dx3(k))
-      B21(i,k)=-(0.5d0*(u2(i,jm,k)+u2(i,jm-1,k)))**2 &
+      B21(i,k)=-(0.5d0*(u2(i,jm,k)+u2(i,jm-1,k)))**2d0 &
               *dx1(i)*dx3(k) 
 
       A22(i,k)=-(-(p(i,1,k))*dx1(i)*dx3(k)/rhoKOH)
@@ -2763,7 +2849,7 @@ if ( .false. ) then
         close(1,status='keep')
     end if
     if ( (m1.gt.1).and.(m2.eq.m2_max) ) then
-        open(unit=1,file='./output/FyDomain.dat',access='append')
+        open(unit=1,file='./output/FyDomain.dat',position='append')
         write(1,1) time, term1, term2, term3, term4, term5,     &
                     term6, total, Error
         close(1,status='keep')
@@ -2779,8 +2865,9 @@ end subroutine domain_flux_force_y
 subroutine bulb_force_z()
     use var2
     implicit none
-    integer ::   o,typ_force_z(0:im+1,0:jm+1,0:km+1)
+    integer :: o
     real(8) :: term1,term2,term3,total_up,total_bellow
+    ! integer :: typ_force_z(0:im+1,0:jm+1,0:km+1)
 
     total = 0d0
     total_up = 0d0
@@ -2794,7 +2881,7 @@ subroutine bulb_force_z()
     do k=0,km+1
         do j=0,jm+1
             do i=0,im+1
-                if ((x1(i) - xc)**2 + (x2(j) - yc)**2 + (x3_k(k) - zc)**2.gt.radius**2) then
+                if ((x1(i) - xc)**2d0 + (x2(j) - yc)**2d0 + (x3_k(k) - zc)**2d0.gt.radius**2d0) then
                     typ_force_z(i,j,k)=1
                 end if
             end do
@@ -2840,7 +2927,7 @@ subroutine bulb_force_z()
         end if
 
         if(typ_force_z(i,j+1,k).eq.1) then
-            !  term1=-(-(0.5d0*(u2(i,j,k)+u2(i,j+1,k)))**2*dx1(i)*dx3(k))
+            !  term1=-(-(0.5d0*(u2(i,j,k)+u2(i,j+1,k)))**2d0*dx1(i)*dx3(k))
             term2 = 0d0
             term3=-(nuKOH*(u3(i,j+1,k) - u3(i,j,k))/dx2_j(j)*dx1(i)*dx3(k))       
             total=total+term1+term2+term3
@@ -2853,7 +2940,7 @@ subroutine bulb_force_z()
 
        if(typ_force_z(i,j-1,k).eq.1) then
 
-        !  term1=-(0.5d0*(u2(i,j,k)+u2(i,j-1,k)))**2*dx1(i)*dx3(k)
+        !  term1=-(0.5d0*(u2(i,j,k)+u2(i,j-1,k)))**2d0*dx1(i)*dx3(k)
          term2= 0d0
          term3=nuKOH*(u3(i,j,k) - u3(i,j-1,k))/dx2_j(j-1)*dx1(i)*dx3(k)     
          total=total+term1+term2+term3
@@ -2905,7 +2992,7 @@ if ( .false. ) then
         close(1,status='keep')
     end if
     if ( (m1.gt.1).and.(m2.eq.m2_max) ) then
-        open(unit=1,file='./output/FzBubble_top_bottom.dat',access='append')
+        open(unit=1,file='./output/FzBubble_top_bottom.dat',position='append')
         write(1,1) time, total_up, total_bellow, FzCOM
         close(1,status='keep')
     end if

@@ -31,8 +31,8 @@ subroutine eval_time()
     do k=0,km
     do j=0,jm
     do i=0,im
-    if ((x1_i(i)-xc)**2+(x2_j(j)-yc)**2+ &
-     (x3_k(k)-zc)**2.le.radius**2) then
+    if ((x1_i(i)-xc)**2d0+(x2_j(j)-yc)**2d0+ &
+     (x3_k(k)-zc)**2d0.le.radius**2d0) then
 
        I_node(i,j,k)=0d0
 
@@ -87,7 +87,7 @@ subroutine eval_time()
          u1cen=0.5d0*(u1(i-1,j,k)+u1(i,j,k))
          u2cen=0.5d0*(u2(i,j-1,k)+u2(i,j,k))
          u3cen=0.5d0*(u3(i,j,k-1)+u3(i,j,k))
-         uabs=sqrt(u1cen**2+u2cen**2+u3cen**2)
+         uabs=sqrt(u1cen**2d0+u2cen**2d0+u3cen**2d0)
          if (typ(i,j,k).eq.1) then
           maxc(1)=max(maxc(1),c(i,j,k,1))
           maxc(2)=max(maxc(2),c(i,j,k,2))

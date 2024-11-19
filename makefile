@@ -1,6 +1,6 @@
 FC      = gfortran
 OLEVEL  = -O2
-FOPTS   = -mcmodel=medium -fopenmp -Wall -Wextra -fcheck=all,no-array-temps
+FOPTS   = -mcmodel=medium -fopenmp -Wall -Wextra -Werror -pedantic -fcheck=all,no-array-temps, -ffpe-trap=invalid,zero,overflow -ffpe-summary=all -g -fbacktrace
 FFLAGS	= $(OLEVEL) $(FOPTS)
 
 SOURCE  = module.f90   \

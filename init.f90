@@ -8,6 +8,8 @@ subroutine initialize()
       use var2
       implicit none
 
+      write(*,'(A55)') '-------------  Initialzing  Simulation -------------'
+
       ! Allocate arrays into memory.
       call initArrays()
 
@@ -20,28 +22,34 @@ subroutine initialize()
       ! Check the parameters defined in the module for possible conflicts.
       call initCheckConfig()
 
-      !<------------- Time step settings
-      time = 0d0
-      c_w  = 1d-30 + 10d0*umax
+      ! Load data from previous simulation?
+      if ( LoadBinaryData.eqv..true. ) then
+            call initLoadPreviousSimulation()
+      end if
 
+      !  Time step settings
+      time = 0d0
+      c_w  = tiny(0.0d0) + 10d0*umax
+
+      
       ! Set the explicit time step, we assume that the maximum diffusivity is dif(1) 
 
       !------------- Artificial Compressibility parameter
       SELECT CASE(artCompresMethod)
             CASE('modified')
-                  dtime = 0.5d0*min( co*dx1_i(0)/c_w, 0.25d0*(dx1_i(0)**2)/nuKOH,     &
-                                     0.25d0*(dx1_i(0)**2)/dif(1) )
+                  dtime = 0.5d0*min( co*dx1_i(0)/c_w, 0.25d0*(dx1_i(0)**2d0)/nuKOH,     &
+                                     0.25d0*(dx1_i(0)**2d0)/dif(1) )
                   dtime = dtime*ACmod
-                  usou2 = 0.05d0*(dx1(0)/dtime)**2
+                  usou2 = 0.05d0*(dx1(0)/dtime)**2d0
             CASE('auto')
-                  dtime = 0.5d0*min( co*dx1_i(0)/c_w, 0.25d0*(dx1_i(0)**2)/nuKOH,     &
-                  0.25d0*(dx1_i(0)**2)/dif(1) )
-                  usou2 = 0.05d0*(dx1(0)/dtime)**2
+                  dtime = 0.5d0*min( co*dx1_i(0)/c_w, 0.25d0*(dx1_i(0)**2d0)/nuKOH,     &
+                  0.25d0*(dx1_i(0)**2d0)/dif(1) )
+                  usou2 = 0.05d0*(dx1(0)/dtime)**2d0
             CASE DEFAULT
                   ! Same case as auto
-                  dtime = 0.5d0*min( co*dx1_i(0)/c_w, 0.25d0*(dx1_i(0)**2)/nuKOH,     &
-                                     0.25d0*(dx1_i(0)**2)/dif(1) )
-                  usou2 = 0.05d0*(dx1(0)/dtime)**2
+                  dtime = 0.5d0*min( co*dx1_i(0)/c_w, 0.25d0*(dx1_i(0)**2d0)/nuKOH,     &
+                                     0.25d0*(dx1_i(0)**2d0)/dif(1) )
+                  usou2 = 0.05d0*(dx1(0)/dtime)**2d0
       END SELECT
       
 end subroutine initialize
@@ -57,7 +65,6 @@ subroutine initArrays()
       use var2
       integer :: istat
 
-      write(*,*) 'Allocating memory' 
       ! Rank 1 arrays:
       allocate( &
             x1(0:im+1),x1_i(-1:im+1), &
@@ -178,6 +185,20 @@ subroutine initArrays()
             nx_prob_WW(1:im*jm*km/2,1:2),   &
             ny_prob_WW(1:im*jm*km/2,1:2),   &
             nz_prob_WW(1:im*jm*km/2,1:2),   &
+
+            A11(1:jm,1:km), B11(1:jm,1:km), &
+            A12(1:jm,1:km), B12(1:jm,1:km), &
+            A13(1:jm,1:km), B13(1:jm,1:km), &
+            A21(1:im,1:km), B21(1:im,1:km), &
+            A22(1:im,1:km), B22(1:im,1:km), &
+            A23(1:im,1:km), B23(1:im,1:km), &
+            A31(1:im,1:jm), B31(1:im,1:jm), &
+            A32(1:im,1:jm), B32(1:im,1:jm), &
+            A33(1:im,1:jm), B33(1:im,1:jm), &
+            u_i(1:im,1:km), u_o(1:im,1:km), &
+            w_i(1:im,1:km), w_o(1:im,1:km), &
+            u_f(1:im,1:jm), u_b(1:im,1:jm), &
+            v_f(1:im,1:jm), v_b(1:im,1:jm), &
             stat=istat)
 
       ! Rank 3 arrays:
@@ -187,10 +208,10 @@ subroutine initArrays()
             rhu(0:im,0:jm,0:km),rhv(0:im,0:jm,0:km),           &
             rhw(0:im,0:jm,0:km), &
             div(1:im,1:jm,1:km), &
-            u_node(0:im,0:jm,0:km),v_node(0:im,0:jm,0:km), &
-            w_node(0:im,0:jm,0:km),p_node(0:im,0:jm,0:km), &
-            work1(0:im,0:jm,0:km), work2(0:im,0:jm,0:km),&
-            work3(0:im,0:jm,0:km),  &
+            u_node(0:im,0:jm,0:km),v_node(0:im,0:jm,0:km),  &
+            w_node(0:im,0:jm,0:km),p_node(0:im,0:jm,0:km),  &
+            work1(0:im,0:jm,0:km), work2(0:im,0:jm,0:km),   &
+            work3(0:im,0:jm,0:km), rhs(1:im,1:jm,1:km),     &
             phi(0:im+1,0:jm+1,0:km+1),  &
             coef1_phi(1:im,1:jm,1:km),coef2_phi(1:im,1:jm,1:km),    &
             coef3_phi(1:im,1:jm,1:km),coef4_phi(1:im,1:jm,1:km),    &
@@ -200,27 +221,56 @@ subroutine initArrays()
             storage_v(0:im+1,0:jm+1,0:km+1),    &
             storage_w(0:im+1,0:jm+1,0:km+1),    &
             storage_p(0:im+1,0:jm+1,0:km+1),    &
-            typ(0:im+1,0:jm+1,0:km+1),  &
-            typ1(0:im+1,0:jm+1,0:km+1), &
-            typ2(0:im+1,0:jm+1,0:km+1), &
-            typ3(0:im+1,0:jm+1,0:km+1), &
-            typ1a(0:im+1,0:jm+1,0:km+1),    &
-            typ2a(0:im+1,0:jm+1,0:km+1),    &
-            typ3a(0:im+1,0:jm+1,0:km+1),    &
-            typ_IB(0:im+1,0:jm+1,0:km+1),   &
-            typ_u_IB(0:im+1,0:jm+1,0:km+1), &
-            typ_v_IB(0:im+1,0:jm+1,0:km+1), &
-            typ_w_IB(0:im+1,0:jm+1,0:km+1), stat=istat  )
+            Error_phi(0:im+1,0:jm+1,0:km+1),    &
+            storage_phi(0:im+1,0:jm+1,0:km+1),  &
+            u1_temp(0:im+1,0:jm+1,0:km+1),      &
+            u2_temp(0:im+1,0:jm+1,0:km+1),      &
+            u3_temp(0:im+1,0:jm+1,0:km+1),      &
+            typ(0:im+1,0:jm+1,0:km+1),          &
+            typ1(0:im+1,0:jm+1,0:km+1),         &
+            typ2(0:im+1,0:jm+1,0:km+1),         &
+            typ3(0:im+1,0:jm+1,0:km+1),         &
+            typ1a(0:im+1,0:jm+1,0:km+1),        &
+            typ2a(0:im+1,0:jm+1,0:km+1),        &
+            typ3a(0:im+1,0:jm+1,0:km+1),        &
+            typ_IB(0:im+1,0:jm+1,0:km+1),       &
+            typ_u_IB(0:im+1,0:jm+1,0:km+1),     &
+            typ_v_IB(0:im+1,0:jm+1,0:km+1),     &
+            typ_w_IB(0:im+1,0:jm+1,0:km+1),     &
+            typ_force_x(0:im+1,0:jm+1,0:km+1),  &
+            typ_force_y(0:im+1,0:jm+1,0:km+1),  &
+            typ_force_z(0:im+1,0:jm+1,0:km+1),  &
+            stat=istat)
       
       ! Rank 4 arrays:
-      allocate( &
-            c(0:im+1,0:jm+1,0:km+1,nmax), &
-            storage_c(0:im+1,0:jm+1,0:km+1,1:3), stat=istat)
+      allocate(                                 &
+            c(0:im+1,0:jm+1,0:km+1,nmax),       &
+            storage_c(0:im+1,0:jm+1,0:km+1,nmax),&
+            c_old(0:im+1,0:jm+1,0:km+1,nmax),   &
+            Error_c(0:im+1,0:jm+1,0:km+1,nmax), &
+            stat=istat)
+
+      ! Initialize coefficient array for fourth order
+      ! low storage Runge-Kutta method initialize.
+      if ( useRungeKutta.eqv..true. ) then
+            allocate(RK_alpha(1:5), stat=istat)
+
+            RK_alpha(1:5) = (/1d0, 1d0/4d0, 1d0/3d0, 1d0/2d0, 1d0/)
+            rungIterEnd = 5
+      elseif(useRungeKutta.eqv..false.) then
+            ! If not s
+            allocate(RK_alpha(1), stat=istat)
+
+            RK_alpha(1) = 1d0
+            rungIterEnd = 1
+      else
+            error stop "Error in Runge-Kutta array initialization!"
+      end if
 
       if ( istat.eq.0 ) then
-            write(*,*) 'Allocating memory complete.'
+            write(*,'(A30,A)') 'Allocating memory: ', 'complete.'
       else
-            write(*,*) 'Problem in allocating memory.' 
+            error stop 'Problem in allocating memory.'
       end if
 end subroutine initArrays
 
@@ -245,8 +295,8 @@ subroutine initLoadDomain()
       real(8) ::  frt,alphac
 
       ! Define
-      ! x1=x1L=0 at the electrode (left side of domain)
-      ! x1=x1R=lx1 at a location in the bulk flow (right side of domain)
+      ! x1 = x1L = 0 at the electrode (left side of domain)
+      ! x1 = x1R = lx1 at a location in the bulk flow (right side of domain)
       ! domain length is lx1
 
       ! Cell Face x
@@ -320,7 +370,7 @@ subroutine initLoadDomain()
 
       condfac=Far*frt*2d0*dif(2)
 
-      ! Load initial conditions into the domain arrays.
+      ! Load initial conditions for the electrode.
       do k=0,km+1
             do j=0,jm+1 
                   eta(j,k)  = 0d0
@@ -371,7 +421,7 @@ subroutine initLoadDomain()
             end do
       end do
 
-      ! Compute kinetic prefactors
+      ! Compute kinetic prefactors on the electrode
       do k=1,km
             do j=1,jm
                   ka(j,k) = ka0*(0.5d0*(c(0,j,k,2) + c(1,j,k,2))/c_ref(2))*   &
@@ -380,15 +430,15 @@ subroutine initLoadDomain()
             end do
       end do
 
-      ka(0,0:km)=ka(1,0:km)
-      ka(jm+1,0:km)=ka(jm,0:km)
-      ka(0:jm+1,0)=ka(0:jm+1,1)
-      ka(0:jm+1,km+1)=ka(0:jm+1,km)
+      ka(0,0:km)      = ka(1,0:km)
+      ka(jm+1,0:km)   = ka(jm,0:km)
+      ka(0:jm+1,0)    = ka(0:jm+1,1)
+      ka(0:jm+1,km+1) = ka(0:jm+1,km)
 
-      kc(0,0:km)=kc(1,0:km)
-      kc(jm+1,0:km)=kc(jm,0:km)
-      kc(0:jm+1,0)=kc(0:jm+1,1)
-      kc(0:jm+1,km+1)=kc(0:jm+1,km)
+      kc(0,0:km)      = kc(1,0:km)
+      kc(jm+1,0:km)   = kc(jm,0:km)
+      kc(0:jm+1,0)    = kc(0:jm+1,1)
+      kc(0:jm+1,km+1) = kc(0:jm+1,km)
 end subroutine initLoadDomain
 
 
@@ -434,7 +484,7 @@ subroutine initLoadBubble()
                   
                   ! Initial location of bubble in fluid domain
                   xc = lx1/2d0
-                  yc = lx2*1d0/3d0
+                  yc = 0.6d0*2d0*radius
                   zc = lx3/2d0
 
                   ! In Stokes flow bubble is detached
@@ -446,7 +496,7 @@ subroutine initLoadBubble()
       
                   ! Initial location of bubble in fluid domain
                   xc = radius + 1d0*x1_i(1)
-                  yc = lx2/2d0
+                  yc = (1d-4)/2d0     ! Always start at the same y-location regardless of domain height.
                   zc = lx1/2d0
       
                   ! During growth bubble is attached
@@ -479,25 +529,27 @@ subroutine initCheckConfig()
       !! The following checks are performed:
       !!  - Virtual force and density ratio
       !!  - Resolution of domain and bubble
+      !!  - If valid m2-iteration is specified
       !!------------------------------------------
       use var2
       implicit none
 
 1     format(1A30,1A60)
+
       ! Density ratio check from Schwarz et al. (2015)
       if ((rhoH2/rhoKOH.le.1.2).and.(VirtForcMethod.eqv..false.)) then
             write(*,1) '!! WARNING: ', 'Density ratio < 1.2 and Virtual force method is dissabled.'
       end if
 
       ! Bubble resolution required dX <= R/12
-      if ( (lx1/dble(im).gt.radius/12d0) ) then
-            write(*,1) '!! Warning: ', 'Domain resolution dX>R/12; issue to resolve bubble properly.'
+      if ( (lx1/dble(im).gt.R_max/6d0) ) then
+            write(*,1) '!! Warning: ', 'Domain resolution dX>R/6; issue to resolve bubble properly.'
       end if
-      if ( (lx2/dble(jm).gt.radius/12d0) ) then
-            write(*,1) '!! Warning: ', 'Domain resolution dY>R/12; issue to resolve bubble properly.'
+      if ( (lx2/dble(jm).gt.R_max/6d0) ) then
+            write(*,1) '!! Warning: ', 'Domain resolution dY>R/6; issue to resolve bubble properly.'
       end if
-      if ( (lx3/dble(km).gt.radius/12d0) ) then
-            write(*,1) '!! Warning: ', 'Domain resolution dZ>R/12, issue to resolve bubble properly.'
+      if ( (lx3/dble(km).gt.R_max/6d0) ) then
+            write(*,1) '!! Warning: ', 'Domain resolution dZ>R/6, issue to resolve bubble properly.'
       end if
 
       ! Check if resolution is equidistant: dx = dy = dz
@@ -507,6 +559,36 @@ subroutine initCheckConfig()
       !        write(*,1) '!! Warning: ', 'Domain resolution is not equisistand: dx =/= dy =/= dz.'
       ! end if
 
+      ! Check if valid m2-iteration integer is specified
+      if ( (LoadBinaryDataM2iter.lt.1).and.(LoadBinaryData.eqv..true.) ) then
+            write(*,1) '!! Warning: ', 'Load binary data is toggled on but specified m2 < 1.'
+      end if
+
+      ! Check if Forward Time Central difference in space (FTCS) scheme is stable:
+      ! CFL conditon, von Neumann stability analysis 
 end subroutine initCheckConfig
+
+
+
+subroutine initLoadPreviousSimulation()
+      use var2
+      implicit none
+      character(len=60) :: filePath
+
+      ! Define filename
+  1   format(1A,1I4.4,1A4)
+      write(filePath,1) './output/simData_', LoadBinaryDataM2iter, '.bin'
+
+      write(*,'(1A30,A)') 'Loading previous simulation: ', trim(filePath)
+  
+      ! Read from file
+      open(111,file=trim(filePath),form='unformatted')
+      read(111) time, p, u1, u2, u3, c, eta, phi, ka, kc, phiL,  &
+                 conduct, xc, yc, zc, radius, drdt, dxcdt, dycdt, &
+                 dzcdt, ddxcdttFv, ddycdttFv, ddzcdttFv,          &
+                 isDetached, fsx, fsy, fsz, bubbleMassflux
+      close(111)
+
+end subroutine initLoadPreviousSimulation
      
 

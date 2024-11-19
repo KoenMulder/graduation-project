@@ -10,21 +10,27 @@ subroutine bubble_Main()
     real(8) ::  xc_old
 
     if ( bubble ) then
-        !<<<<<<<<<<< Bubble growth
-        if ( radius.lt.R_max ) then
-            call bulb_flux
-            call growing
+        SELECT CASE (FlowCondPreset)
+            CASE ('Stokes')
+                ! No growth in Stokes flow
 
-            ! Check if bubble is at least 1 cell away from electrode and membrame
-            ! only do this during growth
-            if ( (xc - radius).lt.x1_i(1) ) then
-                xc_old = xc
-                xc = radius + 1d0*x1_i(1)
-                dxcdt = (xc - xc_old)/dtime
-            end if
-        end if
+            CASE DEFAULT
+                ! Determine bubble growth
+                if ( radius.lt.R_max ) then
+                    call bulb_flux
+                    call growing
+        
+                    ! Check if bubble is at least 1 cell away from electrode and membrame
+                    ! only do this during growth
+                    if ( (xc - radius).lt.x1_i(1) ) then
+                        xc_old = xc
+                        xc = radius + 1d0*x1_i(1)
+                        dxcdt = (xc - xc_old)/dtime
+                    end if
+                end if
+        END SELECT
 
-        !<<<<<<<<<<< Forces on Bubble
+        ! These parts are always calculated
         call domain_flux
 
         call bulb_force_x
@@ -37,17 +43,17 @@ subroutine bubble_Main()
 
         !<<<<<<<<<<< Bubble departure
         if ( radius.ge.R_max) then
+            ! Set bubble properties to zero for better post-processing
+            bubbleMassflux = 0d0
+            drdt = 0d0
+            ! Assign detachment label
             if ( isDetached.eqv..false. ) then
                 isDetached = .true.
             end if
             
+            ! Compute bubble position
             call bubble_COM
-
-            ! Set bubble properties to zero for better post-processing
-            bubbleMassflux = 0d0
-            drdt = 0d0
         end if
-
     end if
     
 end subroutine bubble_Main
@@ -139,9 +145,9 @@ subroutine bubble_COM_VirtualForceMethod()
     CASE('SOBD')
         ! Second order implicit time scheme for virtual force acceleration
         ! (du/dt)_n = (3*u_n - 4*u_{n-1} + n_{n-2})/dt
-        ddxcdttFv = (3*dxcdt - 4*dxcdt_old + dxcdt_oldold)/dtime
-        ddycdttFv = (3*dycdt - 4*dycdt_old + dycdt_oldold)/dtime
-        ddzcdttFv = (3*dzcdt - 4*dzcdt_old + dzcdt_oldold)/dtime
+        ddxcdttFv = (3d0*dxcdt - 4d0*dxcdt_old + dxcdt_oldold)/dtime
+        ddycdttFv = (3d0*dycdt - 4d0*dycdt_old + dycdt_oldold)/dtime
+        ddzcdttFv = (3d0*dzcdt - 4d0*dzcdt_old + dzcdt_oldold)/dtime
 
         ! store n-2 velocity
         dxcdt_oldold = dxcdt_old

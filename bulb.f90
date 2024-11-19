@@ -48,7 +48,7 @@ subroutine IBM()
    do k=1,km
       do j=1,jm
          do i=1,im
-            if ((x1(i)-xc)**2+(x2(j)-yc)**2+(x3(k)-zc)**2.gt.radius**2) then
+            if ((x1(i)-xc)**2d0+(x2(j)-yc)**2d0+(x3(k)-zc)**2d0.gt.radius**2d0) then
                typ(i,j,k)=1
             else
                u1(i-1,j,k)=udummy
@@ -154,8 +154,8 @@ subroutine IBM()
 
       phiS(o)=datan2((x2(j)-yc),(x1(i)-xc))
 
-      thetaS(o)=acos((x3(k)-zc)/sqrt((x1(i)-xc)**2+ &
-      (x2(j)-yc)**2+(x3(k)-zc)**2))
+      thetaS(o)=acos((x3(k)-zc)/sqrt((x1(i)-xc)**2d0+ &
+      (x2(j)-yc)**2d0+(x3(k)-zc)**2d0))
 
 
       T_ni(o)=cos(phiS(o))*sin(thetaS(o))
@@ -172,20 +172,20 @@ subroutine IBM()
 
 ! c         initialise x-direction
 ! c         Normal distance between interface and bubble centre
-      rnode=sqrt((x1(i)-xc)**2+(x2(j)-yc)**2+(x3(k)-zc)**2)
+      rnode=sqrt((x1(i)-xc)**2d0+(x2(j)-yc)**2d0+(x3(k)-zc)**2d0)
 
 
 ! c        normal distance of interface to bubble surface 
 ! c        (can be negative)
       rb(o)=radius-rnode
 
-      xb_c(o)=x1(i)+rb(o)*T_ni(o)
-      yb_c(o)=x2(j)+rb(o)*T_nj(o)
-      zb_c(o)=x3(k)+rb(o)*T_nk(o)
+      xb_c(o)= x1(i) + rb(o)*T_ni(o)
+      yb_c(o)= x2(j) + rb(o)*T_nj(o)
+      zb_c(o)= x3(k) + rb(o)*T_nk(o)
 
-      x_prob_c(o,mm)=xb_c(o)+dx1_i(0)*T_ni(o)
-      y_prob_c(o,mm)=yb_c(o)+dx1_i(0)*T_nj(o)
-      z_prob_c(o,mm)=zb_c(o)+dx1_i(0)*T_nk(o)
+      x_prob_c(o,mm) = xb_c(o) + dx1_i(0)*T_ni(o)
+      y_prob_c(o,mm) = yb_c(o) + dx1_i(0)*T_nj(o)
+      z_prob_c(o,mm) = zb_c(o) + dx1_i(0)*T_nk(o)
 
 
 ! c         prob number of cells starts at an interface so only 
