@@ -7,3 +7,7 @@
 #   Testing Files  #
 ####################
 testing.f
+
+#   Output folder  #
+####################
+output/

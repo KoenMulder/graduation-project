@@ -4,12 +4,12 @@ FOPTS   = -mcmodel=medium -fopenmp -Wall -Wextra -Werror -pedantic -fcheck=all,n
 FFLAGS	= $(OLEVEL) $(FOPTS)
 
 SOURCE  = module.f90   \
-		  main_new.f90 \
-		  init_new.f90 \
-          eval_new.f90 \
+		  main.f90 \
+		  init.f90 \
+          eval.f90 \
 		  output.f90   \
-          bulb_new.f90 \
-          pde_new.f90  \
+          bulb.f90 \
+          pde.f90  \
 		  bubble.f90   \
 
 
